@@ -1,0 +1,80 @@
+:root {
+  color-scheme: light;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: #334155;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.field input,
+.field select,
+.field textarea {
+  min-height: 2.75rem;
+  width: 100%;
+  border: 1px solid #d6d3d1;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  padding: 0.625rem 0.75rem;
+  color: #0f172a;
+  outline: none;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: #111827;
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.12);
+}
+
+.field-invalid {
+  border-color: #ef4444 !important;
+}
+
+.error-message {
+  display: none;
+  margin-top: 0.4rem;
+  color: #b91c1c;
+  font-size: 0.8125rem;
+}
+
+.has-error .error-message {
+  display: block;
+}
+
+.signature-canvas {
+  height: 11rem;
+  width: 100%;
+  touch-action: none;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
