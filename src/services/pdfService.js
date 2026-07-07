@@ -25,11 +25,15 @@ export function exportReservationPdf(details) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
   doc.text(`Reserva: ${reservation.name || "Sin nombre"}`, 20, 42);
-  doc.text(`Entrada: ${reservation.checkIn}`, 20, 50);
-  doc.text(`Salida: ${reservation.checkOut}`, 20, 58);
-  doc.text(`Composicion: ${compositionText(reservation)}`, 20, 66);
-  doc.text(`Personas registradas: ${guests.length}/${reservation.totalGuests}`, 20, 74);
-  doc.text(`Estado: ${reservation.status}`, 20, 82);
+  doc.text(`Telefono contacto: ${reservation.contactPhone || ""}`, 20, 50);
+  if (reservation.reservationReference) {
+    doc.text(`Localizador Booking / referencia: ${reservation.reservationReference}`, 20, 58);
+  }
+  doc.text(`Entrada: ${reservation.checkIn}`, 20, 66);
+  doc.text(`Salida: ${reservation.checkOut}`, 20, 74);
+  doc.text(`Composicion: ${compositionText(reservation)}`, 20, 82);
+  doc.text(`Personas registradas: ${guests.length}/${reservation.totalGuests}`, 20, 90);
+  doc.text(`Estado: ${reservation.status}`, 20, 98);
 
   guests.forEach((guest) => {
     const isChild = guest.guestType === "child";
@@ -46,8 +50,8 @@ export function exportReservationPdf(details) {
       adultRows.push(["Telefono", guest.phone]);
     }
 
-    if (guest.relationship) {
-      adultRows.push(["Parentesco", guest.relationship]);
+    if (guest.relationshipResponsible) {
+      adultRows.push(["Parentesco responsable", guest.relationshipResponsible]);
     }
 
     if (guest.supportNumber) {
@@ -61,7 +65,7 @@ export function exportReservationPdf(details) {
           ["Direccion", guest.address],
           ["Codigo postal", guest.postalCode],
           ["Telefono", guest.phone || guest.parentPhone],
-          ["Parentesco", guest.relationship],
+          ["Parentesco del menor", guest.relationshipMinor || guest.relationship],
         ]
       : adultRows;
 

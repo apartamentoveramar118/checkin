@@ -67,6 +67,8 @@ Si `VITE_SUPABASE_URL` o `VITE_SUPABASE_ANON_KEY` no estan configuradas, la app 
 - `id`
 - `token`
 - `reservation_name`
+- `contact_phone`
+- `reservation_reference`
 - `check_in`
 - `check_out`
 - `adult_count`
@@ -90,9 +92,11 @@ Si `VITE_SUPABASE_URL` o `VITE_SUPABASE_ANON_KEY` no estan configuradas, la app 
 - `fecha_nacimiento`
 - `direccion`
 - `codigo_postal`: solo adultos
-- `telefono`: obligatorio en Adulto 1; copiado a adultos adicionales y ninos si hay menores
-- `telefono_padre_madre`: compatibilidad, copiado desde Adulto 1 en ninos
-- `parentesco`: obligatorio en Adulto 1 solo si hay ninos; copiado a ninos
+- `telefono`: heredado desde `reservations.contact_phone`
+- `telefono_padre_madre`: compatibilidad, heredado desde `reservations.contact_phone` en ninos
+- `parentesco`: compatibilidad
+- `parentesco_responsable`: Adulto 1 si hay ninos
+- `parentesco_menor`: cada nino
 - `firma_digital`: obligatoria en adultos, null en ninos
 - `created_at`
 
@@ -131,6 +135,7 @@ Antes de produccion/SaaS hay que anadir autenticacion de propietario y endurecer
 Propietario:
 
 - Crea reserva indicando adultos y ninos.
+- Informa telefono WhatsApp obligatorio y, opcionalmente, localizador Booking / referencia.
 - Se genera token y enlace publico `/checkin/{token}`.
 - Lista reservas reales desde Supabase.
 - Ve composicion, por ejemplo `2 adultos · 1 nino`.
@@ -145,10 +150,10 @@ Huesped:
 - Los adultos eligen tipo de documento: NIF, Pasaporte u Otros.
 - Solo los adultos con NIF rellenan numero de soporte obligatorio.
 - Los adultos siempre rellenan documento, fecha nacimiento, direccion, codigo postal y firma obligatoria.
-- Adulto 1 tambien rellena telefono obligatorio.
-- Si hay ninos, Adulto 1 rellena un unico campo `parentesco con los menores`.
-- Los ninos solo rellenan nombre y fecha nacimiento.
-- La app copia direccion, codigo postal, telefono y parentesco de Adulto 1 a cada nino antes de guardar.
+- El huesped no escribe telefono: se hereda siempre de `contact_phone` de la reserva.
+- Si hay ninos, Adulto 1 rellena `parentesco responsable`.
+- Los ninos solo rellenan nombre, fecha nacimiento y `parentesco del menor`.
+- La app copia direccion y codigo postal de Adulto 1 a cada nino antes de guardar.
 - Envia.
 - Se insertan huespedes en `guests`.
 - La reserva pasa a `completed` y guarda `completed_at`.
@@ -159,9 +164,10 @@ Huesped:
 El PDF lee datos reales desde Supabase.
 
 - Primera pagina: informacion de reserva, composicion y progreso.
+- Incluye telefono de contacto y localizador Booking / referencia si existe.
 - Una pagina por persona.
-- Adultos: tipo de documento, documento, fecha nacimiento, direccion, codigo postal, telefono y firma. El soporte solo aparece si existe. El parentesco aparece en Adulto 1 si hay menores.
-- Ninos: fecha nacimiento, direccion, codigo postal, telefono y parentesco. No muestra DNI, soporte ni firma.
+- Adultos: tipo de documento, documento, fecha nacimiento, direccion, codigo postal, telefono heredado y firma. El soporte solo aparece si existe. El parentesco responsable aparece en Adulto 1 si hay menores.
+- Ninos: fecha nacimiento, direccion, codigo postal, telefono heredado y parentesco del menor. No muestra DNI, soporte ni firma.
 
 ## SES Hospedajes
 

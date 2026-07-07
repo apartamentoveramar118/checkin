@@ -1,6 +1,8 @@
 export function prepareReservationForSES(details) {
   return {
     reservationId: details.reservation.id,
+    contactPhone: details.reservation.contactPhone,
+    reservationReference: details.reservation.reservationReference || null,
     guests: details.guests.map((guest) => ({
       guestType: guest.guestType,
       guestIndex: guest.guestIndex,
@@ -12,7 +14,9 @@ export function prepareReservationForSES(details) {
       address: guest.address,
       postalCode: guest.postalCode,
       phone: guest.phone || guest.parentPhone || null,
-      relationship: guest.relationship || null,
+      parentescoResponsable: guest.relationshipResponsible || null,
+      parentescoMenor: guest.relationshipMinor || null,
+      relationship: guest.relationshipResponsible || guest.relationshipMinor || guest.relationship || null,
     })),
   };
 }

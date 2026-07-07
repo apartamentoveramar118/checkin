@@ -28,6 +28,8 @@ function normalizeReservation(row) {
     id: row.id,
     token: row.token,
     name: row.reservation_name || row.name || "",
+    contactPhone: row.contact_phone || row.contactPhone || "",
+    reservationReference: row.reservation_reference || row.reservationReference || "",
     checkIn: row.check_in || row.checkIn,
     checkOut: row.check_out || row.checkOut,
     adultCount,
@@ -60,7 +62,9 @@ function normalizeGuest(row) {
     postalCode: row.codigo_postal || row.postalCode || "",
     phone: row.telefono || row.phone || row.telefono_padre_madre || row.parentPhone || "",
     parentPhone: row.telefono_padre_madre || row.parentPhone || "",
-    relationship: row.parentesco || row.relationship || "",
+    relationshipResponsible: row.parentesco_responsable || row.relationshipResponsible || "",
+    relationshipMinor: row.parentesco_menor || row.relationshipMinor || "",
+    relationship: row.parentesco || row.relationship || row.parentesco_responsable || row.parentesco_menor || "",
     signature: row.firma_digital || row.signature || "",
   };
 }
@@ -88,6 +92,8 @@ function toDbReservation(input) {
   const output = {};
 
   if ("name" in input) output.reservation_name = input.name?.trim() || null;
+  if ("contactPhone" in input) output.contact_phone = input.contactPhone?.trim();
+  if ("reservationReference" in input) output.reservation_reference = input.reservationReference?.trim() || null;
   if ("checkIn" in input) output.check_in = input.checkIn;
   if ("checkOut" in input) output.check_out = input.checkOut;
   if ("adultCount" in input || "childCount" in input) {
@@ -156,7 +162,9 @@ function normalizeGuestForDb(guest) {
       num_soporte: documentType === "nif" ? guest.supportNumber.trim() : null,
       codigo_postal: guest.postalCode.trim(),
       telefono_padre_madre: null,
-      parentesco: guest.relationship?.trim() || null,
+      parentesco: guest.relationshipResponsible?.trim() || guest.relationship?.trim() || null,
+      parentesco_responsable: guest.relationshipResponsible?.trim() || null,
+      parentesco_menor: null,
     };
   }
 
@@ -167,7 +175,9 @@ function normalizeGuestForDb(guest) {
     tipo_documento: null,
     codigo_postal: guest.postalCode?.trim() || null,
     telefono_padre_madre: guest.phone?.trim() || guest.parentPhone?.trim() || null,
-    parentesco: guest.relationship.trim(),
+    parentesco: guest.relationshipMinor?.trim() || guest.relationship?.trim() || null,
+    parentesco_responsable: null,
+    parentesco_menor: guest.relationshipMinor?.trim() || null,
   };
 }
 
@@ -186,9 +196,11 @@ export const reservationService = {
   async createReservation(input) {
     const client = requireSupabase();
     const counts = validateOccupancy(input);
-    const reservation = {
+  const reservation = {
       token: createToken(),
       reservation_name: input.name?.trim() || null,
+      contact_phone: input.contactPhone?.trim(),
+      reservation_reference: input.reservationReference?.trim() || null,
       check_in: input.checkIn,
       check_out: input.checkOut,
       adult_count: counts.adultCount,
@@ -198,6 +210,10 @@ export const reservationService = {
       created_at: new Date().toISOString(),
       completed_at: null,
     };
+
+    if (!reservation.contact_phone) {
+      throw new Error("El telefono WhatsApp de contacto es obligatorio.");
+    }
 
     const { data, error } = await client
       .from("reservations")

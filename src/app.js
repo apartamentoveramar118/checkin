@@ -91,6 +91,43 @@ function documentTypeLabel(type) {
   return labels[type] || "NIF";
 }
 
+function optionList(options) {
+  return options.map(({ value, label }) => `<option value="${value}">${label}</option>`).join("");
+}
+
+const responsibleRelationshipOptions = [
+  { value: "padre", label: "Padre" },
+  { value: "madre", label: "Madre" },
+  { value: "tutor", label: "Tutor" },
+  { value: "abuelo", label: "Abuelo" },
+  { value: "abuela", label: "Abuela" },
+  { value: "tio", label: "Tio" },
+  { value: "tia", label: "Tia" },
+];
+
+const minorRelationshipOptions = [
+  { value: "hijo", label: "Hijo" },
+  { value: "hija", label: "Hija" },
+  { value: "nieto", label: "Nieto" },
+  { value: "nieta", label: "Nieta" },
+  { value: "sobrino", label: "Sobrino" },
+  { value: "sobrina", label: "Sobrina" },
+  { value: "tutelado", label: "Tutelado" },
+  { value: "tutelada", label: "Tutelada" },
+];
+
+function normalizePhoneForWhatsApp(phone) {
+  const cleaned = String(phone || "").replace(/[\s-]/g, "");
+  if (/^[6789]\d+$/.test(cleaned)) return `34${cleaned}`;
+  return cleaned.replace(/^\+/, "");
+}
+
+function whatsappUrl(reservation) {
+  const phone = normalizePhoneForWhatsApp(reservation.contactPhone);
+  const message = `Hola. Para agilizar tu llegada, completa el pre-check-in antes de tu entrada:\n${publicUrl(reservation.token)}\nGracias.`;
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
+
 async function renderOwnerDashboard() {
   reservations = await reservationService.listReservations();
   shell(`
@@ -113,6 +150,8 @@ async function renderOwnerDashboard() {
         </div>
         <div class="space-y-4">
           ${field("name", "Nombre de la reserva (opcional)", "text", "", 'placeholder="Ej. Familia Martin"')}
+          ${field("contactPhone", "Telefono WhatsApp de contacto", "tel", "", 'required placeholder="Ej. 612345678"')}
+          ${field("reservationReference", "Localizador Booking / referencia", "text", "", 'placeholder="Ej. BK123456"')}
           ${field("checkIn", "Fecha entrada", "date", "", "required")}
           ${field("checkOut", "Fecha salida", "date", "", "required")}
           <div class="grid grid-cols-2 gap-3">
@@ -182,6 +221,8 @@ function renderReservationCard(reservation) {
             <span class="rounded-full px-2 py-1 text-xs font-bold ring-1 ${statusClasses[reservation.status]}">${statusLabels[reservation.status]}</span>
           </div>
           <p class="mt-2 text-sm text-slate-600">${reservation.checkIn} -> ${reservation.checkOut} · ${compositionText(reservation)}</p>
+          <p class="mt-1 text-sm text-slate-600">WhatsApp: ${reservation.contactPhone || "-"}</p>
+          ${reservation.reservationReference ? `<p class="mt-1 text-sm text-slate-600">Referencia: ${reservation.reservationReference}</p>` : ""}
           <p class="mt-1 text-sm font-semibold text-slate-500">${reservation.registeredCount}/${reservation.totalGuests} personas registradas</p>
           <div class="mt-3 flex gap-2">
             <input class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600" value="${publicUrl(reservation.token)}" readonly />
@@ -191,6 +232,7 @@ function renderReservationCard(reservation) {
         <div class="grid grid-cols-2 gap-2 sm:w-72">
           <button data-action="view" data-id="${reservation.id}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold hover:bg-slate-50">Ver</button>
           <button data-action="edit" data-id="${reservation.id}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold hover:bg-slate-50">Editar</button>
+          <button data-action="whatsapp" data-id="${reservation.id}" class="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-50">Enviar por WhatsApp</button>
           <button data-action="pdf" data-id="${reservation.id}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold hover:bg-slate-50">PDF</button>
           <button data-action="ses" data-id="${reservation.id}" class="rounded-lg bg-slate-950 px-3 py-2 text-sm font-bold text-white hover:bg-slate-800">Enviar a SES Hospedajes</button>
           <button data-action="delete" data-id="${reservation.id}" class="col-span-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-50">Borrar</button>
@@ -207,6 +249,11 @@ async function handleCreateReservation(event) {
   const adultCount = Number(data.adultCount);
   const childCount = Number(data.childCount);
 
+  if (!data.contactPhone?.trim()) {
+    toast("Falta telefono WhatsApp de contacto.", "error");
+    return;
+  }
+
   if (!data.checkIn || !data.checkOut || !validateCounts(adultCount, childCount)) {
     toast("Revisa fechas y capacidad: maximo 4 personas, minimo 1 adulto.", "error");
     return;
@@ -214,6 +261,8 @@ async function handleCreateReservation(event) {
 
   await reservationService.createReservation({
     ...data,
+    contactPhone: data.contactPhone,
+    reservationReference: data.reservationReference,
     adultCount,
     childCount,
   });
@@ -238,6 +287,10 @@ async function handleReservationAction(event) {
 
   if (action === "edit") {
     await renderEditReservation(id);
+  }
+
+  if (action === "whatsapp") {
+    window.open(whatsappUrl(reservation), "_blank", "noopener,noreferrer");
   }
 
   if (action === "pdf") {
@@ -270,6 +323,8 @@ async function renderReservationDetails(id) {
         <div>
           <h1 class="text-2xl font-bold">${reservation.name || "Reserva sin nombre"}</h1>
           <p class="mt-2 text-slate-600">${reservation.checkIn} -> ${reservation.checkOut} · ${compositionText(reservation)}</p>
+          <p class="mt-1 text-sm font-semibold text-slate-500">WhatsApp: ${reservation.contactPhone || "-"}</p>
+          ${reservation.reservationReference ? `<p class="mt-1 text-sm font-semibold text-slate-500">Referencia: ${reservation.reservationReference}</p>` : ""}
           <p class="mt-1 text-sm font-semibold text-slate-500">${guests.length}/${reservation.totalGuests} personas registradas</p>
           <p class="mt-2 text-sm font-semibold text-slate-500">${publicUrl(reservation.token)}</p>
         </div>
@@ -298,8 +353,8 @@ function renderGuestReadCard(guest) {
     adultRows.push(["Telefono", guest.phone]);
   }
 
-  if (guest.relationship) {
-    adultRows.push(["Parentesco", guest.relationship]);
+  if (guest.relationshipResponsible) {
+    adultRows.push(["Parentesco responsable", guest.relationshipResponsible]);
   }
 
   if (guest.supportNumber) {
@@ -313,7 +368,7 @@ function renderGuestReadCard(guest) {
         ["Direccion", guest.address],
         ["Codigo postal", guest.postalCode],
         ["Telefono", guest.phone || guest.parentPhone],
-        ["Parentesco", guest.relationship],
+        ["Parentesco del menor", guest.relationshipMinor || guest.relationship],
       ]
     : adultRows;
 
@@ -336,6 +391,8 @@ async function renderEditReservation(id) {
       <h1 class="mb-5 text-xl font-bold">Editar reserva</h1>
       <div class="space-y-4">
         ${field("name", "Nombre de la reserva", "text", reservation.name)}
+        ${field("contactPhone", "Telefono WhatsApp de contacto", "tel", reservation.contactPhone, "required")}
+        ${field("reservationReference", "Localizador Booking / referencia", "text", reservation.reservationReference)}
         ${field("checkIn", "Fecha entrada", "date", reservation.checkIn, "required")}
         ${field("checkOut", "Fecha salida", "date", reservation.checkOut, "required")}
         <div class="grid grid-cols-2 gap-3">
@@ -370,8 +427,15 @@ async function renderEditReservation(id) {
       return;
     }
 
+    if (!data.contactPhone?.trim()) {
+      toast("Falta telefono WhatsApp de contacto.", "error");
+      return;
+    }
+
     await reservationService.updateReservation(id, {
       name: data.name,
+      contactPhone: data.contactPhone,
+      reservationReference: data.reservationReference,
       checkIn: data.checkIn,
       checkOut: data.checkOut,
       adultCount,
@@ -449,8 +513,16 @@ function renderAdultFormCard(index, hasChildren) {
         ${field(`adult_${index}_birthDate`, "Fecha nacimiento", "date", "", "required")}
         <div class="sm:col-span-2">${field(`adult_${index}_address`, "Direccion", "text", "", "required")}</div>
         ${field(`adult_${index}_postalCode`, "Codigo postal", "text", "", 'required inputmode="numeric"')}
-        ${index === 1 ? field(`adult_${index}_phone`, "Telefono", "tel", "", "required") : ""}
-        ${index === 1 && hasChildren ? field(`adult_${index}_relationship`, "Parentesco con los menores", "text", "", 'required placeholder="Ej. madre, padre, tutor"') : ""}
+        ${index === 1 && hasChildren ? `
+          <div class="field">
+            <label for="adult_${index}_relationshipResponsible">Parentesco responsable</label>
+            <select id="adult_${index}_relationshipResponsible" name="adult_${index}_relationshipResponsible" required>
+              <option value="">Selecciona parentesco</option>
+              ${optionList(responsibleRelationshipOptions)}
+            </select>
+            <p class="error-message">Campo obligatorio.</p>
+          </div>
+        ` : ""}
       </div>
       ${renderSignatureField(`adult-${index}`, "Firma digital", true)}
     </section>
@@ -492,6 +564,14 @@ function renderChildFormCard(index) {
       <div class="grid gap-4 sm:grid-cols-2">
         ${field(`child_${index}_fullName`, "Nombre completo", "text", "", "required")}
         ${field(`child_${index}_birthDate`, "Fecha nacimiento", "date", "", "required")}
+        <div class="field">
+          <label for="child_${index}_relationshipMinor">Parentesco del menor</label>
+          <select id="child_${index}_relationshipMinor" name="child_${index}_relationshipMinor" required>
+            <option value="">Selecciona parentesco</option>
+            ${optionList(minorRelationshipOptions)}
+          </select>
+          <p class="error-message">Campo obligatorio.</p>
+        </div>
       </div>
     </section>
   `;
@@ -559,8 +639,12 @@ async function handleGuestSubmit(event, reservation) {
   const validationErrors = [];
   let adultOneAddress = "";
   let adultOnePostalCode = "";
-  let adultOnePhone = "";
-  let adultOneRelationship = "";
+  const contactPhone = reservation.contactPhone || "";
+
+  if (!contactPhone.trim()) {
+    toast("La reserva no tiene telefono WhatsApp de contacto.", "error");
+    return;
+  }
 
   for (let index = 1; index <= reservation.adultCount; index += 1) {
     const signature = activeSignatures.find((item) => item.index === `adult-${index}`);
@@ -576,12 +660,12 @@ async function handleGuestSubmit(event, reservation) {
       birthDate: readRequiredWithMessage(form, `adult_${index}_birthDate`, `Falta fecha de nacimiento en ${label}`, validationErrors),
       address: readRequiredWithMessage(form, `adult_${index}_address`, `Falta direccion en ${label}`, validationErrors),
       postalCode: readRequiredWithMessage(form, `adult_${index}_postalCode`, `Falta codigo postal en ${label}`, validationErrors),
-      phone: index === 1
-        ? readRequiredWithMessage(form, `adult_${index}_phone`, `Falta telefono en ${label}`, validationErrors)
+      phone: contactPhone,
+      relationshipResponsible: index === 1 && reservation.childCount > 0
+        ? readRequiredWithMessage(form, `adult_${index}_relationshipResponsible`, `Falta parentesco responsable en ${label}`, validationErrors)
         : "",
-      relationship: index === 1 && reservation.childCount > 0
-        ? readRequiredWithMessage(form, `adult_${index}_relationship`, `Falta parentesco en ${label}`, validationErrors)
-        : "",
+      relationshipMinor: "",
+      relationship: "",
       signature: signature?.pad.toDataURL("image/png"),
     };
 
@@ -598,10 +682,6 @@ async function handleGuestSubmit(event, reservation) {
     if (index === 1) {
       adultOneAddress = values.address || "";
       adultOnePostalCode = values.postalCode || "";
-      adultOnePhone = values.phone || "";
-      adultOneRelationship = values.relationship || "";
-    } else if (reservation.childCount > 0) {
-      values.phone = adultOnePhone;
     }
 
     guests.push(values);
@@ -616,9 +696,11 @@ async function handleGuestSubmit(event, reservation) {
       birthDate: readRequiredWithMessage(form, `child_${index}_birthDate`, `Falta fecha de nacimiento en ${label}`, validationErrors),
       address: adultOneAddress,
       postalCode: adultOnePostalCode,
-      phone: adultOnePhone,
-      parentPhone: adultOnePhone,
-      relationship: adultOneRelationship,
+      phone: contactPhone,
+      parentPhone: contactPhone,
+      relationshipResponsible: "",
+      relationshipMinor: readRequiredWithMessage(form, `child_${index}_relationshipMinor`, `Falta parentesco del menor en ${label}`, validationErrors),
+      relationship: "",
       signature: null,
       documentId: "",
       supportNumber: "",
