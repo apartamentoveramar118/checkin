@@ -1,16 +1,11 @@
 import { supabaseClient } from "./supabaseClient.js";
 
-const STORAGE_KEY = "precheckin-reservations-v3";
-const LEGACY_STORAGE_KEY = "precheckin-reservations-v2";
+function requireSupabase() {
+  if (!supabaseClient) {
+    throw new Error("Supabase no esta configurado. Revisa VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.");
+  }
 
-function readLocalReservations() {
-  const current = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-  if (current.length) return current;
-  return JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || "[]");
-}
-
-function writeLocalReservations(reservations) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(reservations));
+  return supabaseClient;
 }
 
 function createToken() {
@@ -118,29 +113,17 @@ function stripUndefined(object) {
 async function withRegisteredCounts(normalizedReservations) {
   if (!normalizedReservations.length) return normalizedReservations;
 
-  if (supabaseClient) {
-    const ids = normalizedReservations.map((reservation) => reservation.id);
-    const { data, error } = await supabaseClient
-      .from("guests")
-      .select("reservation_id")
-      .in("reservation_id", ids);
+  const client = requireSupabase();
+  const ids = normalizedReservations.map((reservation) => reservation.id);
+  const { data, error } = await client
+    .from("guests")
+    .select("reservation_id")
+    .in("reservation_id", ids);
 
-    if (error) throw error;
+  if (error) throw error;
 
-    const counts = data.reduce((acc, guest) => {
-      acc[guest.reservation_id] = (acc[guest.reservation_id] || 0) + 1;
-      return acc;
-    }, {});
-
-    return normalizedReservations.map((reservation) => ({
-      ...reservation,
-      registeredCount: counts[reservation.id] || 0,
-    }));
-  }
-
-  const local = readLocalReservations();
-  const counts = local.reduce((acc, reservation) => {
-    acc[reservation.id] = (reservation.guests || []).length;
+  const counts = data.reduce((acc, guest) => {
+    acc[guest.reservation_id] = (acc[guest.reservation_id] || 0) + 1;
     return acc;
   }, {});
 
@@ -190,24 +173,18 @@ function normalizeGuestForDb(guest) {
 
 export const reservationService = {
   async listReservations() {
-    if (supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from("reservations")
-        .select("*")
-        .order("created_at", { ascending: false });
+    const client = requireSupabase();
+    const { data, error } = await client
+      .from("reservations")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      return withRegisteredCounts(data.map(normalizeReservation));
-    }
-
-    const normalized = readLocalReservations()
-      .map(normalizeReservation)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-    return withRegisteredCounts(normalized);
+    if (error) throw error;
+    return withRegisteredCounts(data.map(normalizeReservation));
   },
 
   async createReservation(input) {
+    const client = requireSupabase();
     const counts = validateOccupancy(input);
     const reservation = {
       token: createToken(),
@@ -222,105 +199,72 @@ export const reservationService = {
       completed_at: null,
     };
 
-    if (supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from("reservations")
-        .insert(reservation)
-        .select()
-        .single();
+    const { data, error } = await client
+      .from("reservations")
+      .insert(reservation)
+      .select()
+      .single();
 
-      if (error) throw error;
-      return normalizeReservation(data);
-    }
-
-    const reservations = readLocalReservations();
-    const localReservation = {
-      ...reservation,
-      id: crypto.randomUUID(),
-      guests: [],
-    };
-    reservations.push(localReservation);
-    writeLocalReservations(reservations);
-    return normalizeReservation(localReservation);
+    if (error) throw error;
+    return normalizeReservation(data);
   },
 
   async updateReservation(id, patch) {
+    const client = requireSupabase();
     const dbPatch = stripUndefined(toDbReservation(patch));
 
-    if (supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from("reservations")
-        .update(dbPatch)
-        .eq("id", id)
-        .select()
-        .single();
+    const { data, error } = await client
+      .from("reservations")
+      .update(dbPatch)
+      .eq("id", id)
+      .select()
+      .single();
 
-      if (error) throw error;
-      return normalizeReservation(data);
-    }
-
-    const reservations = readLocalReservations();
-    const index = reservations.findIndex((reservation) => reservation.id === id);
-    reservations[index] = { ...reservations[index], ...dbPatch };
-    writeLocalReservations(reservations);
-    return normalizeReservation(reservations[index]);
+    if (error) throw error;
+    return normalizeReservation(data);
   },
 
   async deleteReservation(id) {
-    if (supabaseClient) {
-      const { error } = await supabaseClient.from("reservations").delete().eq("id", id);
-      if (error) throw error;
-      return;
-    }
-
-    writeLocalReservations(readLocalReservations().filter((reservation) => reservation.id !== id));
+    const client = requireSupabase();
+    const { error } = await client.from("reservations").delete().eq("id", id);
+    if (error) throw error;
   },
 
   async getReservationByToken(token) {
-    if (supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from("reservations")
-        .select("*")
-        .eq("token", token)
-        .single();
+    const client = requireSupabase();
+    const { data, error } = await client
+      .from("reservations")
+      .select("*")
+      .eq("token", token)
+      .single();
 
-      if (error) throw error;
-      return normalizeReservation(data);
-    }
-
-    const reservation = readLocalReservations().find((item) => item.token === token);
-    return reservation ? normalizeReservation(reservation) : null;
+    if (error) throw error;
+    return normalizeReservation(data);
   },
 
   async getReservationDetails(id) {
-    if (supabaseClient) {
-      const [{ data: reservation, error }, { data: guests, error: guestsError }] = await Promise.all([
-        supabaseClient.from("reservations").select("*").eq("id", id).single(),
-        supabaseClient
-          .from("guests")
-          .select("*")
-          .eq("reservation_id", id)
-          .order("guest_type", { ascending: true })
-          .order("guest_index", { ascending: true }),
-      ]);
+    const client = requireSupabase();
+    const [{ data: reservation, error }, { data: guests, error: guestsError }] = await Promise.all([
+      client.from("reservations").select("*").eq("id", id).single(),
+      client
+        .from("guests")
+        .select("*")
+        .eq("reservation_id", id)
+        .order("guest_type", { ascending: true })
+        .order("guest_index", { ascending: true }),
+    ]);
 
-      if (error) throw error;
-      if (guestsError) throw guestsError;
+    if (error) throw error;
+    if (guestsError) throw guestsError;
 
-      return {
-        reservation: normalizeReservation(reservation),
-        guests: guests.map(normalizeGuest),
-      };
-    }
-
-    const reservation = readLocalReservations().find((item) => item.id === id);
     return {
       reservation: normalizeReservation(reservation),
-      guests: (reservation.guests || []).map(normalizeGuest),
+      guests: guests.map(normalizeGuest),
     };
   },
 
   async saveGuests(reservationId, guests) {
+    const client = requireSupabase();
     const normalizedGuests = guests.map((guest) =>
       normalizeGuestForDb({
         ...guest,
@@ -328,26 +272,13 @@ export const reservationService = {
       }),
     );
 
-    if (supabaseClient) {
-      await supabaseClient.from("guests").delete().eq("reservation_id", reservationId);
-      const { error } = await supabaseClient.from("guests").insert(normalizedGuests);
-      if (error) throw error;
+    await client.from("guests").delete().eq("reservation_id", reservationId);
+    const { error } = await client.from("guests").insert(normalizedGuests);
+    if (error) throw error;
 
-      await this.updateReservation(reservationId, {
-        status: "completed",
-        completedAt: new Date().toISOString(),
-      });
-      return;
-    }
-
-    const reservations = readLocalReservations();
-    const index = reservations.findIndex((reservation) => reservation.id === reservationId);
-    reservations[index].guests = normalizedGuests.map((guest) => ({
-      ...guest,
-      id: crypto.randomUUID(),
-    }));
-    reservations[index].status = "completed";
-    reservations[index].completed_at = new Date().toISOString();
-    writeLocalReservations(reservations);
+    await this.updateReservation(reservationId, {
+      status: "completed",
+      completedAt: new Date().toISOString(),
+    });
   },
 };

@@ -21,6 +21,8 @@ npm install
 npm run dev
 ```
 
+La aplicacion requiere Supabase siempre. No existe modo local de prueba ni fallback a `localStorage`.
+
 HTTPS local para movil:
 
 ```bash
@@ -55,6 +57,8 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key
 5. Reinicia Vite.
 
 No uses nunca la `service_role key` en el frontend. La app usa solo `anon key`.
+
+Si `VITE_SUPABASE_URL` o `VITE_SUPABASE_ANON_KEY` no estan configuradas, la app muestra un error claro y no permite crear, leer ni guardar reservas.
 
 ## Modelo de datos
 
