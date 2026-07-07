@@ -97,6 +97,7 @@ alter table public.guests alter column firma_digital drop not null;
 
 alter table public.guests drop constraint if exists guests_adult_required_fields_check;
 alter table public.guests drop constraint if exists guests_child_required_fields_check;
+alter table public.reservations drop constraint if exists reservations_status_check;
 
 do $$
 begin
@@ -128,12 +129,8 @@ begin
       add constraint reservations_contact_phone_check check (length(trim(contact_phone)) > 0);
   end if;
 
-  if not exists (
-    select 1 from pg_constraint where conname = 'reservations_status_check'
-  ) then
-    alter table public.reservations
-      add constraint reservations_status_check check (status in ('pending', 'in_progress', 'completed', 'ses_sent'));
-  end if;
+  alter table public.reservations
+    add constraint reservations_status_check check (status in ('pending', 'in_progress', 'completed', 'ses_sent', 'ses_error'));
 
   if not exists (
     select 1 from pg_constraint where conname = 'reservations_ses_status_check'

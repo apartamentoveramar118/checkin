@@ -37,6 +37,7 @@ function normalizeReservation(row) {
     totalGuests,
     guestCount: totalGuests,
     registeredCount: toNumber(row.registeredCount ?? row.registered_count, 0),
+    guestNames: row.guestNames || row.guest_names || [],
     status: row.status,
     sesStatus: row.ses_status || row.sesStatus || "not_sent",
     createdAt: row.created_at || row.createdAt,
@@ -123,7 +124,7 @@ async function withRegisteredCounts(normalizedReservations) {
   const ids = normalizedReservations.map((reservation) => reservation.id);
   const { data, error } = await client
     .from("guests")
-    .select("reservation_id")
+    .select("reservation_id,nombre_completo")
     .in("reservation_id", ids);
 
   if (error) throw error;
@@ -133,9 +134,16 @@ async function withRegisteredCounts(normalizedReservations) {
     return acc;
   }, {});
 
+  const guestNames = data.reduce((acc, guest) => {
+    if (!acc[guest.reservation_id]) acc[guest.reservation_id] = [];
+    if (guest.nombre_completo) acc[guest.reservation_id].push(guest.nombre_completo);
+    return acc;
+  }, {});
+
   return normalizedReservations.map((reservation) => ({
     ...reservation,
     registeredCount: counts[reservation.id] || 0,
+    guestNames: guestNames[reservation.id] || [],
   }));
 }
 

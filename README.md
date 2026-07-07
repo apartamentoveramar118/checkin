@@ -140,7 +140,11 @@ Propietario:
 - Lista reservas reales desde Supabase.
 - Ve composicion, por ejemplo `2 adultos · 1 nino`.
 - Ve progreso, por ejemplo `3/3 personas registradas`.
-- Puede ver, editar, exportar PDF, enviar a SES Hospedajes o borrar con confirmacion.
+- Ve contadores superiores de reservas, pendientes, completadas y entradas de hoy.
+- Puede buscar por reserva, telefono, referencia Booking o nombre de huesped.
+- Puede filtrar por todos, pendientes o completados.
+- Puede ver detalle, editar, copiar enlace, enviar WhatsApp, exportar PDF o borrar con modal de confirmacion.
+- El boton SES queda preparado y deshabilitado como `Proximamente`.
 
 Huesped:
 
@@ -183,4 +187,4 @@ Funcion preparada:
 sendReservationToSES(reservationId)
 ```
 
-Actualmente devuelve: `Integracion SES Hospedajes pendiente de implementacion`.
+Actualmente devuelve: `SES pendiente de implementación.`.

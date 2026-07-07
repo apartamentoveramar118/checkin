@@ -14,6 +14,11 @@ where contact_phone is null;
 alter table public.reservations
   alter column contact_phone set not null;
 
+alter table public.reservations drop constraint if exists reservations_status_check;
+
+alter table public.reservations
+  add constraint reservations_status_check check (status in ('pending', 'in_progress', 'completed', 'ses_sent', 'ses_error'));
+
 do $$
 begin
   if not exists (

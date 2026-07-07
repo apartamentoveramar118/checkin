@@ -1,24 +1,36 @@
 import { isSupabaseConfigured } from "./services/config.js";
 import { reservationService } from "./services/reservationService.js";
 import { exportReservationPdf } from "./services/pdfService.js";
-import { sendReservationToSES } from "./services/sesService.js";
 
 const app = document.querySelector("#app");
 let reservations = [];
 let activeSignatures = [];
+let reservationFilter = "all";
+let reservationSearch = "";
+const notifiedCompletedReservations = new Set();
 
 const statusLabels = {
   pending: "Pendiente",
-  in_progress: "En progreso",
-  completed: "Completado",
-  ses_sent: "Enviado SES",
+  in_progress: "Pendiente",
+  completed: "Check-in completado",
+  ses_sent: "Enviado a SES",
+  ses_error: "Error SES",
 };
 
 const statusClasses = {
-  pending: "bg-amber-100 text-amber-800 ring-amber-200",
-  in_progress: "bg-blue-100 text-blue-800 ring-blue-200",
-  completed: "bg-emerald-100 text-emerald-800 ring-emerald-200",
-  ses_sent: "bg-slate-900 text-white ring-slate-900",
+  pending: "bg-amber-100 text-amber-900 ring-amber-200",
+  in_progress: "bg-amber-100 text-amber-900 ring-amber-200",
+  completed: "bg-emerald-100 text-emerald-900 ring-emerald-200",
+  ses_sent: "bg-sky-100 text-sky-900 ring-sky-200",
+  ses_error: "bg-red-100 text-red-900 ring-red-200",
+};
+
+const statusDots = {
+  pending: "bg-amber-500",
+  in_progress: "bg-amber-500",
+  completed: "bg-emerald-500",
+  ses_sent: "bg-sky-500",
+  ses_error: "bg-red-500",
 };
 
 function icon(name, className = "h-4 w-4") {
@@ -50,9 +62,13 @@ function shell(content) {
 }
 
 function toast(message, type = "info") {
-  const colors = type === "error" ? "border-red-200 bg-red-50 text-red-700" : "border-slate-200 bg-white text-slate-700";
+  const colors = {
+    error: "border-red-200 bg-red-50 text-red-800",
+    success: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    info: "border-slate-200 bg-white text-slate-700",
+  }[type] || "border-slate-200 bg-white text-slate-700";
   const node = document.createElement("div");
-  node.className = `fixed bottom-4 left-4 right-4 z-50 rounded-lg border px-4 py-3 text-sm font-semibold shadow-lg sm:left-auto sm:w-96 ${colors}`;
+  node.className = `fixed bottom-4 left-4 right-4 z-50 rounded-xl border px-4 py-3 text-sm font-semibold shadow-xl sm:left-auto sm:w-96 ${colors}`;
   node.textContent = message;
   document.body.append(node);
   window.setTimeout(() => node.remove(), 3600);
@@ -72,6 +88,53 @@ function compositionText(reservation) {
   const adults = `${reservation.adultCount} adulto${reservation.adultCount === 1 ? "" : "s"}`;
   const children = `${reservation.childCount} nino${reservation.childCount === 1 ? "" : "s"}`;
   return `${adults} · ${children}`;
+}
+
+function statusBadge(status) {
+  const safeStatus = statusLabels[status] ? status : "pending";
+  return `
+    <span class="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${statusClasses[safeStatus]}">
+      <span class="h-2 w-2 rounded-full ${statusDots[safeStatus]}"></span>
+      ${statusLabels[safeStatus]}
+    </span>
+  `;
+}
+
+function formatDate(value) {
+  if (!value) return "-";
+  const date = new Date(`${value}T00:00:00`);
+  return new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "short", year: "numeric" }).format(date);
+}
+
+function formatDateTime(value) {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function relativeTime(value) {
+  if (!value) return "-";
+  const diffMs = Date.now() - new Date(value).getTime();
+  const minutes = Math.floor(Math.max(0, diffMs) / 60000);
+  if (minutes < 1) return "Ahora";
+  if (minutes < 60) return `Hace ${minutes} minuto${minutes === 1 ? "" : "s"}`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Hace ${hours} hora${hours === 1 ? "" : "s"}`;
+  const days = Math.floor(hours / 24);
+  return `Hace ${days} dia${days === 1 ? "" : "s"}`;
+}
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isPendingStatus(status) {
+  return status === "pending" || status === "in_progress";
 }
 
 function validateCounts(adultCount, childCount) {
@@ -124,12 +187,94 @@ function normalizePhoneForWhatsApp(phone) {
 
 function whatsappUrl(reservation) {
   const phone = normalizePhoneForWhatsApp(reservation.contactPhone);
-  const message = `Hola. Para agilizar tu llegada, completa el pre-check-in antes de tu entrada:\n${publicUrl(reservation.token)}\nGracias.`;
+  const message = `Hola.\n\nPara agilizar vuestra llegada podeis completar el pre-check-in antes de entrar al apartamento.\n\nSolo tardareis unos minutos.\n\n${publicUrl(reservation.token)}\n\nMuchas gracias.`;
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
+
+function sortedReservations(items) {
+  return [...items].sort((a, b) => {
+    const statusScoreA = isPendingStatus(a.status) ? 0 : 1;
+    const statusScoreB = isPendingStatus(b.status) ? 0 : 1;
+    if (statusScoreA !== statusScoreB) return statusScoreA - statusScoreB;
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+  });
+}
+
+function filteredReservations() {
+  const query = reservationSearch.trim().toLowerCase();
+  return sortedReservations(reservations).filter((reservation) => {
+    const matchesFilter =
+      reservationFilter === "all" ||
+      (reservationFilter === "pending" && isPendingStatus(reservation.status)) ||
+      (reservationFilter === "completed" && reservation.status === "completed");
+
+    if (!matchesFilter) return false;
+    if (!query) return true;
+
+    const searchable = [
+      reservation.name,
+      reservation.contactPhone,
+      reservation.reservationReference,
+      ...(reservation.guestNames || []),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return searchable.includes(query);
+  });
+}
+
+function dashboardStats() {
+  return {
+    total: reservations.length,
+    pending: reservations.filter((reservation) => isPendingStatus(reservation.status)).length,
+    completed: reservations.filter((reservation) => reservation.status === "completed").length,
+    today: reservations.filter((reservation) => reservation.checkIn === todayIso()).length,
+  };
+}
+
+function renderSummaryCard(label, value, iconName, tone) {
+  return `
+    <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-wide text-slate-500">${label}</p>
+          <p class="mt-2 text-2xl font-bold text-slate-950">${value}</p>
+        </div>
+        <span class="rounded-lg ${tone} p-2">${icon(iconName, "h-5 w-5")}</span>
+      </div>
+    </article>
+  `;
+}
+
+function renderDashboardSummary() {
+  const stats = dashboardStats();
+  return `
+    <section class="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      ${renderSummaryCard("Reservas", stats.total, "layers-3", "bg-slate-100 text-slate-700")}
+      ${renderSummaryCard("Pendientes", stats.pending, "clock-3", "bg-amber-100 text-amber-800")}
+      ${renderSummaryCard("Completadas", stats.completed, "check-circle-2", "bg-emerald-100 text-emerald-800")}
+      ${renderSummaryCard("Hoy", stats.today, "calendar-days", "bg-sky-100 text-sky-800")}
+    </section>
+  `;
+}
+
+function notifyRecentCompletions(items) {
+  items
+    .filter((reservation) => reservation.status === "completed" && reservation.completedAt)
+    .filter((reservation) => Date.now() - new Date(reservation.completedAt).getTime() < 5 * 60 * 1000)
+    .forEach((reservation) => {
+      if (notifiedCompletedReservations.has(reservation.id)) return;
+      notifiedCompletedReservations.add(reservation.id);
+      toast(`Check-in completado: ${reservation.name || "Reserva sin nombre"} · ${compositionText(reservation)}`, "success");
+    });
 }
 
 async function renderOwnerDashboard() {
   reservations = await reservationService.listReservations();
+  notifyRecentCompletions(reservations);
+  const visibleReservations = filteredReservations();
   shell(`
     <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
@@ -141,6 +286,8 @@ async function renderOwnerDashboard() {
         ${isSupabaseConfigured() ? "Supabase conectado" : "Supabase no configurado"}
       </div>
     </header>
+
+    ${renderDashboardSummary()}
 
     <section class="grid gap-5 lg:grid-cols-[380px_1fr]">
       <form id="reservation-form" class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -174,12 +321,25 @@ async function renderOwnerDashboard() {
       </form>
 
       <section>
-        <div class="mb-3 flex items-center justify-between">
-          <h2 class="text-lg font-bold">Reservas</h2>
-          <span class="text-sm font-semibold text-slate-500">${reservations.length} total</span>
+        <div class="mb-3 flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-bold">Reservas</h2>
+            <span id="visible-count" class="text-sm font-semibold text-slate-500">${visibleReservations.length} visibles</span>
+          </div>
+          <div class="grid gap-3 sm:grid-cols-[1fr_auto]">
+            <label class="relative block">
+              <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">${icon("search", "h-4 w-4")}</span>
+              <input id="reservation-search" class="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm font-semibold outline-none transition focus:border-slate-400" value="${reservationSearch}" placeholder="Buscar por reserva, telefono, Booking o huesped" />
+            </label>
+            <div class="grid grid-cols-3 gap-2 rounded-lg border border-slate-200 bg-white p-1">
+              ${renderFilterButton("all", "Todos")}
+              ${renderFilterButton("pending", "Pendientes")}
+              ${renderFilterButton("completed", "Completados")}
+            </div>
+          </div>
         </div>
         <div id="reservations-list" class="grid gap-3">
-          ${reservations.length ? reservations.map(renderReservationCard).join("") : renderEmptyState()}
+          ${visibleReservations.length ? visibleReservations.map(renderReservationCard).join("") : renderEmptyState()}
         </div>
       </section>
     </section>
@@ -188,7 +348,48 @@ async function renderOwnerDashboard() {
   document.querySelector("#reservation-form").addEventListener("submit", handleCreateReservation);
   document.querySelector("#adultCount").addEventListener("change", updateCreateCapacityHelp);
   document.querySelector("#childCount").addEventListener("change", updateCreateCapacityHelp);
+  document.querySelector("#reservation-search").addEventListener("input", (event) => {
+    reservationSearch = event.target.value;
+    refreshReservationsList();
+  });
+  document.querySelectorAll("[data-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      reservationFilter = button.dataset.filter;
+      refreshReservationsList();
+    });
+  });
   document.querySelectorAll("[data-action]").forEach((button) => button.addEventListener("click", handleReservationAction));
+}
+
+function renderFilterButton(value, label) {
+  const active = reservationFilter === value;
+  return `
+    <button data-filter="${value}" class="rounded-md px-3 py-2 text-xs font-bold transition ${active ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-50"}">
+      ${label}
+    </button>
+  `;
+}
+
+function refreshReservationsList() {
+  const visibleReservations = filteredReservations();
+  const list = document.querySelector("#reservations-list");
+  const count = document.querySelector("#visible-count");
+
+  if (count) count.textContent = `${visibleReservations.length} visibles`;
+  if (list) {
+    list.innerHTML = visibleReservations.length ? visibleReservations.map(renderReservationCard).join("") : renderEmptyState();
+    list.querySelectorAll("[data-action]").forEach((button) => button.addEventListener("click", handleReservationAction));
+  }
+
+  document.querySelectorAll("[data-filter]").forEach((button) => {
+    const active = button.dataset.filter === reservationFilter;
+    button.classList.toggle("bg-slate-950", active);
+    button.classList.toggle("text-white", active);
+    button.classList.toggle("text-slate-600", !active);
+    button.classList.toggle("hover:bg-slate-50", !active);
+  });
+
+  refreshIcons();
 }
 
 function updateCreateCapacityHelp() {
@@ -218,23 +419,24 @@ function renderReservationCard(reservation) {
         <div>
           <div class="flex flex-wrap items-center gap-2">
             <h3 class="font-bold text-slate-950">${reservation.name || "Reserva sin nombre"}</h3>
-            <span class="rounded-full px-2 py-1 text-xs font-bold ring-1 ${statusClasses[reservation.status]}">${statusLabels[reservation.status]}</span>
+            ${statusBadge(reservation.status)}
           </div>
-          <p class="mt-2 text-sm text-slate-600">${reservation.checkIn} -> ${reservation.checkOut} · ${compositionText(reservation)}</p>
+          <p class="mt-2 text-sm text-slate-600">${formatDate(reservation.checkIn)} -> ${formatDate(reservation.checkOut)} - ${compositionText(reservation)}</p>
           <p class="mt-1 text-sm text-slate-600">WhatsApp: ${reservation.contactPhone || "-"}</p>
           ${reservation.reservationReference ? `<p class="mt-1 text-sm text-slate-600">Referencia: ${reservation.reservationReference}</p>` : ""}
           <p class="mt-1 text-sm font-semibold text-slate-500">${reservation.registeredCount}/${reservation.totalGuests} personas registradas</p>
+          <p class="mt-1 text-xs font-semibold text-slate-400">Creada ${relativeTime(reservation.createdAt)}</p>
           <div class="mt-3 flex gap-2">
             <input class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600" value="${publicUrl(reservation.token)}" readonly />
-            <button data-action="copy" data-id="${reservation.id}" class="rounded-lg border border-slate-200 px-3 text-sm font-bold hover:bg-slate-50">${icon("copy")}</button>
+            <button data-action="copy" data-id="${reservation.id}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-bold hover:bg-slate-50">${icon("copy")} Copiar enlace</button>
           </div>
         </div>
         <div class="grid grid-cols-2 gap-2 sm:w-72">
-          <button data-action="view" data-id="${reservation.id}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold hover:bg-slate-50">Ver</button>
+          <button data-action="view" data-id="${reservation.id}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold hover:bg-slate-50">Ver reserva</button>
           <button data-action="edit" data-id="${reservation.id}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold hover:bg-slate-50">Editar</button>
-          <button data-action="whatsapp" data-id="${reservation.id}" class="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-50">Enviar por WhatsApp</button>
-          <button data-action="pdf" data-id="${reservation.id}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold hover:bg-slate-50">PDF</button>
-          <button data-action="ses" data-id="${reservation.id}" class="rounded-lg bg-slate-950 px-3 py-2 text-sm font-bold text-white hover:bg-slate-800">Enviar a SES Hospedajes</button>
+          <button data-action="whatsapp" data-id="${reservation.id}" class="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-50">Enviar WhatsApp</button>
+          <button data-action="pdf" data-id="${reservation.id}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold hover:bg-slate-50">Exportar PDF</button>
+          <button disabled class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-400">Enviar SES - Proximamente</button>
           <button data-action="delete" data-id="${reservation.id}" class="col-span-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-50">Borrar</button>
         </div>
       </div>
@@ -245,6 +447,7 @@ function renderReservationCard(reservation) {
 async function handleCreateReservation(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  const submitButton = form.querySelector("button[type='submit'], button:not([type])");
   const data = Object.fromEntries(new FormData(form));
   const adultCount = Number(data.adultCount);
   const childCount = Number(data.childCount);
@@ -259,15 +462,61 @@ async function handleCreateReservation(event) {
     return;
   }
 
-  await reservationService.createReservation({
-    ...data,
-    contactPhone: data.contactPhone,
-    reservationReference: data.reservationReference,
-    adultCount,
-    childCount,
+  submitButton.disabled = true;
+  submitButton.innerHTML = `${icon("loader-circle", "h-4 w-4 animate-spin")} Creando reserva...`;
+
+  try {
+    await reservationService.createReservation({
+      ...data,
+      contactPhone: data.contactPhone,
+      reservationReference: data.reservationReference,
+      adultCount,
+      childCount,
+    });
+    toast("Reserva creada correctamente.", "success");
+    form.reset();
+    await renderOwnerDashboard();
+  } catch (error) {
+    toast(error.message || "No se pudo crear la reserva.", "error");
+    submitButton.disabled = false;
+    submitButton.innerHTML = `${icon("link")} Generar enlace`;
+    refreshIcons();
+  }
+}
+
+function confirmDeleteReservation(reservation) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "fixed inset-0 z-50 flex items-end bg-slate-950/40 p-4 sm:items-center sm:justify-center";
+    overlay.innerHTML = `
+      <section class="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-2xl">
+        <div class="flex items-start gap-3">
+          <span class="rounded-lg bg-red-50 p-2 text-red-700">${icon("trash-2", "h-5 w-5")}</span>
+          <div>
+            <h2 class="text-lg font-bold text-slate-950">Borrar reserva</h2>
+            <p class="mt-2 text-sm text-slate-600">Se borrara "${reservation.name || "Reserva sin nombre"}" y todos sus huespedes asociados.</p>
+          </div>
+        </div>
+        <div class="mt-5 grid grid-cols-2 gap-2">
+          <button type="button" data-modal-cancel class="rounded-lg border border-slate-200 px-4 py-3 text-sm font-bold hover:bg-slate-50">Cancelar</button>
+          <button type="button" data-modal-confirm class="rounded-lg bg-red-600 px-4 py-3 text-sm font-bold text-white hover:bg-red-700">Borrar</button>
+        </div>
+      </section>
+    `;
+
+    const close = (answer) => {
+      overlay.remove();
+      resolve(answer);
+    };
+
+    overlay.querySelector("[data-modal-cancel]").addEventListener("click", () => close(false));
+    overlay.querySelector("[data-modal-confirm]").addEventListener("click", () => close(true));
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) close(false);
+    });
+    document.body.append(overlay);
+    refreshIcons();
   });
-  form.reset();
-  await renderOwnerDashboard();
 }
 
 async function handleReservationAction(event) {
@@ -278,11 +527,11 @@ async function handleReservationAction(event) {
 
   if (action === "copy") {
     await navigator.clipboard.writeText(publicUrl(reservation.token));
-    toast("Enlace copiado para WhatsApp.");
+    toast("Enlace copiado.", "success");
   }
 
   if (action === "view") {
-    await renderReservationDetails(id);
+    await renderReservationDetailsView(id);
   }
 
   if (action === "edit") {
@@ -290,6 +539,7 @@ async function handleReservationAction(event) {
   }
 
   if (action === "whatsapp") {
+    toast("Abriendo WhatsApp...");
     window.open(whatsappUrl(reservation), "_blank", "noopener,noreferrer");
   }
 
@@ -298,38 +548,51 @@ async function handleReservationAction(event) {
     exportReservationPdf(details);
   }
 
-  if (action === "ses") {
-    const result = await sendReservationToSES(id);
-    toast(result.message);
-  }
-
   if (action === "delete") {
-    const confirmed = window.confirm("Seguro que quieres borrar esta reserva? Tambien se borraran sus huespedes.");
+    const confirmed = await confirmDeleteReservation(reservation);
     if (!confirmed) return;
 
     await reservationService.deleteReservation(id);
-    toast("Reserva borrada.");
+    toast("Reserva borrada.", "success");
     await renderOwnerDashboard();
   }
 }
 
-async function renderReservationDetails(id) {
+async function renderReservationDetailsView(id) {
   const details = await reservationService.getReservationDetails(id);
   const { reservation, guests } = details;
+  const detailRows = [
+    ["Entrada", formatDate(reservation.checkIn)],
+    ["Salida", formatDate(reservation.checkOut)],
+    ["Adultos", reservation.adultCount],
+    ["Ninos", reservation.childCount],
+    ["Telefono", reservation.contactPhone || "-"],
+    ["Referencia Booking", reservation.reservationReference || "-"],
+    ["Estado", statusLabels[reservation.status] || reservation.status],
+    ["Fecha creacion", `${relativeTime(reservation.createdAt)} - ${formatDateTime(reservation.createdAt)}`],
+    ["Fecha completado", reservation.completedAt ? `${relativeTime(reservation.completedAt)} - ${formatDateTime(reservation.completedAt)}` : "-"],
+    ["Enlace", publicUrl(reservation.token)],
+  ];
+
   shell(`
     <button id="back-dashboard" class="mb-4 inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-slate-950">${icon("arrow-left")} Volver</button>
     <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 class="text-2xl font-bold">${reservation.name || "Reserva sin nombre"}</h1>
-          <p class="mt-2 text-slate-600">${reservation.checkIn} -> ${reservation.checkOut} · ${compositionText(reservation)}</p>
-          <p class="mt-1 text-sm font-semibold text-slate-500">WhatsApp: ${reservation.contactPhone || "-"}</p>
-          ${reservation.reservationReference ? `<p class="mt-1 text-sm font-semibold text-slate-500">Referencia: ${reservation.reservationReference}</p>` : ""}
+          <p class="mt-2 text-slate-600">${formatDate(reservation.checkIn)} -> ${formatDate(reservation.checkOut)} - ${compositionText(reservation)}</p>
           <p class="mt-1 text-sm font-semibold text-slate-500">${guests.length}/${reservation.totalGuests} personas registradas</p>
-          <p class="mt-2 text-sm font-semibold text-slate-500">${publicUrl(reservation.token)}</p>
         </div>
-        <span class="w-fit rounded-full px-2 py-1 text-xs font-bold ring-1 ${statusClasses[reservation.status]}">${statusLabels[reservation.status]}</span>
+        ${statusBadge(reservation.status)}
       </div>
+    </section>
+    <section class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      ${detailRows.map(([label, value]) => `
+        <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <dt class="text-xs font-bold uppercase tracking-wide text-slate-500">${label}</dt>
+          <dd class="mt-2 break-words text-sm font-semibold text-slate-900">${value}</dd>
+        </article>
+      `).join("")}
     </section>
     <section class="mt-5 grid gap-4">
       ${guests.length ? guests.map(renderGuestReadCard).join("") : "<p class='rounded-xl border border-slate-200 bg-white p-6 text-slate-600'>Todavia no hay datos de huespedes.</p>"}
@@ -715,6 +978,7 @@ async function handleGuestSubmit(event, reservation) {
   }
 
   await reservationService.saveGuests(reservation.id, guests);
+  toast("Check-in completado.", "success");
   shell(`
     <section class="mx-auto max-w-lg rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm">
       ${icon("check-circle", "mx-auto h-10 w-10 text-emerald-600")}

@@ -21,9 +21,10 @@ export function prepareReservationForSES(details) {
   };
 }
 
-export async function sendReservationToSES() {
+export async function sendReservationToSES(reservationId) {
   return {
     ok: false,
-    message: "Integracion SES Hospedajes pendiente de implementacion",
+    reservationId,
+    message: "SES pendiente de implementación.",
   };
 }
