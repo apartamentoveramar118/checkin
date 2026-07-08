@@ -505,7 +505,7 @@ async function handleReservationAction(event) {
   }
 
   if (action === "view") {
-    await renderReservationDetailsView(id);
+    await openReservationDetails(id);
   }
 
   if (action === "edit") {
@@ -530,6 +530,20 @@ async function handleReservationAction(event) {
     toast("Reserva borrada.", "success");
     await renderOwnerDashboard();
   }
+}
+
+async function openReservationDetails(id) {
+  history.pushState({ view: "reservation-details", id }, "", window.location.href);
+  await renderReservationDetailsView(id);
+}
+
+function goBackToDashboard() {
+  if (history.state?.view === "reservation-details") {
+    history.back();
+    return;
+  }
+
+  renderOwnerDashboard();
 }
 
 async function renderReservationDetailsView(id) {
@@ -572,7 +586,7 @@ async function renderReservationDetailsView(id) {
       ${guests.length ? guests.map(renderGuestReadCard).join("") : "<p class='rounded-xl border border-slate-200 bg-white p-6 text-slate-600'>Todavia no hay datos de huespedes.</p>"}
     </section>
   `);
-  document.querySelector("#back-dashboard").addEventListener("click", renderOwnerDashboard);
+  document.querySelector("#back-dashboard").addEventListener("click", goBackToDashboard);
 }
 
 function renderGuestReadCard(guest) {
@@ -977,6 +991,31 @@ async function boot() {
   }
 }
 
+function handlePopState(event) {
+  const route = getRoute();
+
+  if (route.mode === "guest") {
+    boot().catch((error) => {
+      console.error(error);
+      renderFatalError(error);
+    });
+    return;
+  }
+
+  if (event.state?.view === "reservation-details" && event.state.id) {
+    renderReservationDetailsView(event.state.id).catch((error) => {
+      console.error(error);
+      renderFatalError(error);
+    });
+    return;
+  }
+
+  renderOwnerDashboard().catch((error) => {
+    console.error(error);
+    renderFatalError(error);
+  });
+}
+
 function renderFatalError(error) {
   const message = error?.message || "No se pudo conectar con Supabase.";
   shell(`
@@ -993,7 +1032,7 @@ function renderFatalError(error) {
   `);
 }
 
-window.addEventListener("popstate", boot);
+window.addEventListener("popstate", handlePopState);
 boot().catch((error) => {
   console.error(error);
   renderFatalError(error);
