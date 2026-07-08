@@ -26,7 +26,11 @@ self.addEventListener("activate", (event) => {
             .map((cacheName) => caches.delete(cacheName)),
         ),
       )
-      .then(() => self.clients.claim()),
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: "window", includeUncontrolled: true }))
+      .then((clients) => {
+        clients.forEach((client) => client.navigate(client.url));
+      }),
   );
 });
 
