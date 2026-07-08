@@ -1,5 +1,5 @@
 {
-  "name": "Pre-Check-in Digital",
+  "name": "Check-in",
   "short_name": "Check-in",
   "description": "Pre-check-in digital para alojamientos turísticos.",
   "start_url": "./index.html",
@@ -26,11 +26,6 @@
       "purpose": "any"
     },
     {
-      "src": "icons/icon-192.svg",
-      "sizes": "192x192",
-      "type": "image/svg+xml"
-    },
-    {
       "src": "icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
@@ -41,11 +36,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    },
-    {
-      "src": "icons/icon-512.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml"
     }
   ]
 }

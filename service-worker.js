@@ -1,4 +1,4 @@
-const CACHE_NAME = "precheckin-digital-v3";
+const CACHE_NAME = "precheckin-digital-v4";
 const LOCAL_ASSETS = [
   "/manifest.json",
   "/icons/favicon-48.png",

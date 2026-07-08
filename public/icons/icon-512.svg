@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="COSTABOTS check-in seguro">
-  <rect width="512" height="512" fill="#071a33"/>
-  <path fill="#f8fafc" d="M256 92 374 138v105c0 79-48 137-118 169-70-32-118-90-118-169V138l118-46Z"/>
-  <rect x="216" y="158" width="96" height="160" rx="16" fill="#071a33"/>
-  <circle cx="291" cy="244" r="8" fill="#f8fafc"/>
-  <path d="m173 266 56 56 114-121" fill="none" stroke="#2dd4bf" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
