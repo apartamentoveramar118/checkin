@@ -180,12 +180,14 @@ function normalizeGuestForDb(guest) {
 
   if (guestType === "adult") {
     const documentType = ["nif", "pasaporte", "otros"].includes(guest.documentType) ? guest.documentType : "nif";
+    const documentId = documentType === "nif" ? guest.documentId.trim().toUpperCase() : guest.documentId.trim();
+    const supportNumber = documentType === "nif" ? guest.supportNumber.trim().toUpperCase() : null;
 
     return {
       ...base,
       tipo_documento: documentType,
-      id_documento: guest.documentId.trim(),
-      num_soporte: documentType === "nif" ? guest.supportNumber.trim() : null,
+      id_documento: documentId,
+      num_soporte: supportNumber,
       fecha_expedicion: guest.issueDate || null,
       pais_expedicion: guest.issueCountry?.trim() || null,
       codigo_postal: guest.postalCode.trim(),
@@ -198,8 +200,8 @@ function normalizeGuestForDb(guest) {
 
   return {
     ...base,
-    id_documento: guest.documentId?.trim() || null,
-    num_soporte: guest.supportNumber?.trim() || null,
+    id_documento: guest.documentType === "nif" ? guest.documentId?.trim().toUpperCase() || null : guest.documentId?.trim() || null,
+    num_soporte: guest.documentType === "nif" ? guest.supportNumber?.trim().toUpperCase() || null : null,
     tipo_documento: guest.documentType || null,
     fecha_expedicion: guest.issueDate || null,
     pais_expedicion: guest.issueCountry?.trim() || null,

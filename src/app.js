@@ -213,6 +213,22 @@ function ageHintText(age, isChild = false) {
   return `Edad: ${age} años`;
 }
 
+function normalizeNif(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function normalizeSupportNumber(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function isValidNif(value) {
+  return /^[0-9]{8}[A-Za-z]$/.test(String(value || "").trim());
+}
+
+function isValidSupportNumber(value) {
+  return /^[A-Za-z]{3}[0-9]{6}$/.test(String(value || "").trim());
+}
+
 function normalizePhoneForWhatsApp(phone) {
   const cleaned = String(phone || "").replace(/[\s-]/g, "");
   if (/^[6789]\d+$/.test(cleaned)) return `34${cleaned}`;
@@ -838,7 +854,6 @@ function renderAdultFormCard(index, hasChildren) {
         <div class="field">
           <label for="adult_${index}_birthDate">Fecha nacimiento</label>
           <input id="adult_${index}_birthDate" name="adult_${index}_birthDate" type="date" data-age-input="adult-${index}" required />
-          <p class="mt-1 text-xs font-semibold text-slate-500" data-age-hint="adult-${index}">La edad se calculara automaticamente.</p>
           <p class="error-message">Campo obligatorio.</p>
         </div>
         <div class="field">
@@ -852,12 +867,12 @@ function renderAdultFormCard(index, hasChildren) {
         </div>
         <div class="field">
           <label for="adult_${index}_documentId" data-document-label="${index}">Documento / NIF</label>
-          <input id="adult_${index}_documentId" name="adult_${index}_documentId" type="text" required />
+          <input id="adult_${index}_documentId" name="adult_${index}_documentId" type="text" placeholder="12345678Z" required />
           <p class="error-message">Campo obligatorio.</p>
         </div>
         <div class="field" data-support-wrapper="${index}">
           <label for="adult_${index}_supportNumber">Número de soporte</label>
-          <input id="adult_${index}_supportNumber" name="adult_${index}_supportNumber" type="text" required />
+          <input id="adult_${index}_supportNumber" name="adult_${index}_supportNumber" type="text" placeholder="ABC123456" required />
           <p class="error-message">Número de soporte obligatorio para NIF.</p>
         </div>
         <div class="sm:col-span-2">${field(`adult_${index}_address`, "Dirección", "text", "", "required")}</div>
@@ -877,6 +892,10 @@ function initializeDocumentTypeSelectors() {
     updateDocumentTypeFields(select);
     select.addEventListener("change", () => updateDocumentTypeFields(select));
   });
+  document.querySelectorAll("[data-child-document-type]").forEach((select) => {
+    updateChildDocumentTypeFields(select);
+    select.addEventListener("change", () => updateChildDocumentTypeFields(select));
+  });
 }
 
 function updateDocumentTypeFields(select) {
@@ -893,6 +912,20 @@ function updateDocumentTypeFields(select) {
   if (!supportWrapper || !supportInput) return;
 
   const needsSupport = type === "nif";
+  supportWrapper.classList.toggle("hidden", !needsSupport);
+  supportWrapper.classList.remove("has-error");
+  supportInput.classList.remove("field-invalid");
+  supportInput.required = needsSupport;
+  if (!needsSupport) supportInput.value = "";
+}
+
+function updateChildDocumentTypeFields(select) {
+  const index = select.dataset.childDocumentType;
+  const supportInput = document.querySelector(`#child_${index}_supportNumber`);
+  const supportWrapper = supportInput?.closest(".field");
+  if (!supportInput || !supportWrapper) return;
+
+  const needsSupport = select.value === "nif";
   supportWrapper.classList.toggle("hidden", !needsSupport);
   supportWrapper.classList.remove("has-error");
   supportInput.classList.remove("field-invalid");
@@ -918,7 +951,7 @@ function renderChildFormCard(index) {
           <div class="grid gap-4 sm:grid-cols-2">
             <div class="field">
               <label for="child_${index}_documentType">Tipo de documento</label>
-              <select id="child_${index}_documentType" name="child_${index}_documentType">
+              <select id="child_${index}_documentType" name="child_${index}_documentType" data-child-document-type="${index}">
                 <option value="">Selecciona tipo</option>
                 <option value="nif">NIF</option>
                 <option value="pasaporte">Pasaporte</option>
@@ -926,8 +959,8 @@ function renderChildFormCard(index) {
               </select>
               <p class="error-message">Campo obligatorio.</p>
             </div>
-            ${field(`child_${index}_documentId`, "Documento / NIF", "text")}
-            ${field(`child_${index}_supportNumber`, "Número de soporte", "text")}
+            ${field(`child_${index}_documentId`, "Documento / NIF", "text", "", 'placeholder="12345678Z"')}
+            ${field(`child_${index}_supportNumber`, "Número de soporte", "text", "", 'placeholder="ABC123456"')}
           </div>
           ${renderSignatureField(`child-${index}`, "Firma digital", false)}
         </div>
@@ -971,6 +1004,8 @@ function updateAgeDependentFields(input) {
 
   if (needsDocument) {
     wrapper.querySelectorAll("[data-signature]").forEach((canvas) => initializeSignatureCanvas(canvas));
+    const documentTypeSelect = wrapper.querySelector("[data-child-document-type]");
+    if (documentTypeSelect) updateChildDocumentTypeFields(documentTypeSelect);
   }
 }
 
@@ -1023,6 +1058,27 @@ function readRequired(form, name) {
   input.classList.toggle("field-invalid", empty);
   input.closest(".field")?.classList.toggle("has-error", empty);
   return empty ? null : input.value;
+}
+
+function setFieldError(form, name, message, errors) {
+  const input = form.elements[name];
+  if (!input) return;
+  input.classList.add("field-invalid");
+  const fieldNode = input.closest(".field");
+  fieldNode?.classList.add("has-error");
+  const errorNode = fieldNode?.querySelector(".error-message");
+  if (errorNode) errorNode.textContent = message;
+  errors.push(message);
+}
+
+function clearFieldError(form, name, fallbackMessage = "Campo obligatorio.") {
+  const input = form.elements[name];
+  if (!input) return;
+  input.classList.remove("field-invalid");
+  const fieldNode = input.closest(".field");
+  fieldNode?.classList.remove("has-error");
+  const errorNode = fieldNode?.querySelector(".error-message");
+  if (errorNode) errorNode.textContent = fallbackMessage;
 }
 
 function readRequiredWithMessage(form, name, message, errors) {
@@ -1087,7 +1143,22 @@ async function handleGuestSubmit(event, reservation) {
     };
 
     if (values.documentType === "nif") {
+      if (values.documentId && !isValidNif(values.documentId)) {
+        setFieldError(form, `adult_${index}_documentId`, "Introduce un NIF válido. Ejemplo: 12345678Z", validationErrors);
+      } else if (values.documentId) {
+        values.documentId = normalizeNif(values.documentId);
+        form.elements[`adult_${index}_documentId`].value = values.documentId;
+        clearFieldError(form, `adult_${index}_documentId`);
+      }
+
       values.supportNumber = readRequiredWithMessage(form, `adult_${index}_supportNumber`, `Falta número de soporte en ${label}`, validationErrors);
+      if (values.supportNumber && !isValidSupportNumber(values.supportNumber)) {
+        setFieldError(form, `adult_${index}_supportNumber`, "Introduce un número de soporte válido. Ejemplo: ABC123456", validationErrors);
+      } else if (values.supportNumber) {
+        values.supportNumber = normalizeSupportNumber(values.supportNumber);
+        form.elements[`adult_${index}_supportNumber`].value = values.supportNumber;
+        clearFieldError(form, `adult_${index}_supportNumber`, "Número de soporte obligatorio para NIF.");
+      }
     } else {
       values.supportNumber = "";
     }
@@ -1151,8 +1222,23 @@ async function handleGuestSubmit(event, reservation) {
       issueCountry: "",
     };
 
-    if (needsDocument) {
+    if (needsDocument && values.documentType === "nif") {
+      if (values.documentId && !isValidNif(values.documentId)) {
+        setFieldError(form, `child_${index}_documentId`, "Introduce un NIF válido. Ejemplo: 12345678Z", validationErrors);
+      } else if (values.documentId) {
+        values.documentId = normalizeNif(values.documentId);
+        form.elements[`child_${index}_documentId`].value = values.documentId;
+        clearFieldError(form, `child_${index}_documentId`);
+      }
+
       values.supportNumber = readRequiredWithMessage(form, `child_${index}_supportNumber`, `Falta número de soporte en ${label}`, validationErrors);
+      if (values.supportNumber && !isValidSupportNumber(values.supportNumber)) {
+        setFieldError(form, `child_${index}_supportNumber`, "Introduce un número de soporte válido. Ejemplo: ABC123456", validationErrors);
+      } else if (values.supportNumber) {
+        values.supportNumber = normalizeSupportNumber(values.supportNumber);
+        form.elements[`child_${index}_supportNumber`].value = values.supportNumber;
+        clearFieldError(form, `child_${index}_supportNumber`);
+      }
     }
 
     const missingSignature = needsDocument && (!signature || signature.pad.isEmpty());
