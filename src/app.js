@@ -7,6 +7,7 @@ let reservations = [];
 let activeSignatures = [];
 let reservationFilter = "all";
 let reservationSearch = "";
+let isCreateFormOpen = false;
 const notifiedCompletedReservations = new Set();
 
 const statusLabels = {
@@ -53,7 +54,7 @@ function getRoute() {
 function shell(content) {
   app.innerHTML = `
     <main class="min-h-screen">
-      <div class="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 lg:px-8">
+      <div class="mx-auto w-full max-w-6xl px-4 py-3 sm:px-6 sm:py-5 lg:px-8">
         ${content}
       </div>
     </main>
@@ -236,13 +237,13 @@ function dashboardStats() {
 
 function renderSummaryCard(label, value, iconName, tone) {
   return `
-    <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div class="flex items-center justify-between gap-3">
+    <article class="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
+      <div class="flex items-center justify-between gap-2">
         <div>
-          <p class="text-xs font-bold uppercase tracking-wide text-slate-500">${label}</p>
-          <p class="mt-2 text-2xl font-bold text-slate-950">${value}</p>
+          <p class="text-[11px] font-bold uppercase tracking-wide text-slate-500">${label}</p>
+          <p class="mt-0.5 text-xl font-bold text-slate-950">${value}</p>
         </div>
-        <span class="rounded-lg ${tone} p-2">${icon(iconName, "h-5 w-5")}</span>
+        <span class="rounded-md ${tone} p-1.5">${icon(iconName, "h-4 w-4")}</span>
       </div>
     </article>
   `;
@@ -251,7 +252,7 @@ function renderSummaryCard(label, value, iconName, tone) {
 function renderDashboardSummary() {
   const stats = dashboardStats();
   return `
-    <section class="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <section class="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
       ${renderSummaryCard("Reservas", stats.total, "layers-3", "bg-slate-100 text-slate-700")}
       ${renderSummaryCard("Pendientes", stats.pending, "clock-3", "bg-amber-100 text-amber-800")}
       ${renderSummaryCard("Completadas", stats.completed, "check-circle-2", "bg-emerald-100 text-emerald-800")}
@@ -276,49 +277,55 @@ async function renderOwnerDashboard() {
   notifyRecentCompletions(reservations);
   const visibleReservations = filteredReservations();
   shell(`
-    <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <header class="mb-3 flex items-center justify-between gap-3">
       <div>
-        <p class="text-sm font-bold uppercase tracking-wide text-slate-500">Propietario</p>
-        <h1 class="mt-1 text-3xl font-bold tracking-tight text-slate-950">Pre-Check-in Digital</h1>
-        <p class="mt-2 max-w-2xl text-slate-600">Crea enlaces de check-in para WhatsApp y recibe los datos completos antes de la llegada.</p>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Pre-Check-in Digital</h1>
       </div>
-      <div class="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600">
+      <div class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-bold text-slate-500">
+        <span class="h-2 w-2 rounded-full ${isSupabaseConfigured() ? "bg-emerald-500" : "bg-red-500"}"></span>
         ${isSupabaseConfigured() ? "Supabase conectado" : "Supabase no configurado"}
       </div>
     </header>
 
     ${renderDashboardSummary()}
 
-    <section class="grid gap-5 lg:grid-cols-[380px_1fr]">
-      <form id="reservation-form" class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div class="mb-5 flex items-center gap-2">
-          ${icon("calendar-plus", "h-5 w-5 text-slate-900")}
-          <h2 class="text-lg font-bold">Crear reserva</h2>
-        </div>
-        <div class="space-y-4">
-          ${field("name", "Nombre de la reserva (opcional)", "text", "", 'placeholder="Ej. Familia Martin"')}
-          ${field("contactPhone", "Telefono WhatsApp de contacto", "tel", "", 'required placeholder="Ej. 612345678"')}
-          ${field("reservationReference", "Localizador Booking / referencia", "text", "", 'placeholder="Ej. BK123456"')}
-          ${field("checkIn", "Fecha entrada", "date", "", "required")}
-          ${field("checkOut", "Fecha salida", "date", "", "required")}
-          <div class="grid grid-cols-2 gap-3">
-            <div class="field">
-              <label for="adultCount">Numero de adultos</label>
-              <select id="adultCount" name="adultCount" required>${selectOptions([1, 2, 3, 4], 1)}</select>
-              <p class="error-message">Minimo 1 adulto.</p>
+    <section class="space-y-3">
+      <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <button id="toggle-reservation-form" type="button" class="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3 text-left">
+          <span class="inline-flex items-center gap-2 text-sm font-bold text-slate-950">
+            ${icon("plus-circle", "h-5 w-5 text-slate-900")}
+            Nueva reserva
+          </span>
+          ${icon(isCreateFormOpen ? "chevron-up" : "chevron-down", "h-4 w-4 text-slate-500")}
+        </button>
+        ${isCreateFormOpen ? `
+          <form id="reservation-form" class="border-t border-slate-100 p-4">
+            <div class="grid gap-3 sm:grid-cols-2">
+              ${field("name", "Nombre de la reserva (opcional)", "text", "", 'placeholder="Ej. Familia Martin"')}
+              ${field("contactPhone", "Telefono WhatsApp de contacto", "tel", "", 'required placeholder="Ej. 612345678"')}
+              ${field("reservationReference", "Localizador Booking / referencia", "text", "", 'placeholder="Ej. BK123456"')}
+              ${field("checkIn", "Fecha entrada", "date", "", "required")}
+              ${field("checkOut", "Fecha salida", "date", "", "required")}
+              <div class="grid grid-cols-2 gap-3">
+                <div class="field">
+                  <label for="adultCount">Numero de adultos</label>
+                  <select id="adultCount" name="adultCount" required>${selectOptions([1, 2, 3, 4], 1)}</select>
+                  <p class="error-message">Minimo 1 adulto.</p>
+                </div>
+                <div class="field">
+                  <label for="childCount">Numero de ninos</label>
+                  <select id="childCount" name="childCount" required>${selectOptions([0, 1, 2, 3], 0)}</select>
+                  <p class="error-message">Maximo 3 ninos.</p>
+                </div>
+              </div>
+              <p id="capacity-help" class="rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 sm:col-span-2">Capacidad maxima: 4 personas.</p>
+              <button class="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-slate-800 sm:col-span-2">
+                ${icon("link")} Generar enlace
+              </button>
             </div>
-            <div class="field">
-              <label for="childCount">Numero de ninos</label>
-              <select id="childCount" name="childCount" required>${selectOptions([0, 1, 2, 3], 0)}</select>
-              <p class="error-message">Maximo 3 ninos.</p>
-            </div>
-          </div>
-          <p id="capacity-help" class="rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">Capacidad maxima: 4 personas.</p>
-          <button class="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-slate-800">
-            ${icon("link")} Generar enlace
-          </button>
-        </div>
-      </form>
+          </form>
+        ` : ""}
+      </section>
 
       <section>
         <div class="mb-3 flex flex-col gap-3">
@@ -345,9 +352,13 @@ async function renderOwnerDashboard() {
     </section>
   `);
 
-  document.querySelector("#reservation-form").addEventListener("submit", handleCreateReservation);
-  document.querySelector("#adultCount").addEventListener("change", updateCreateCapacityHelp);
-  document.querySelector("#childCount").addEventListener("change", updateCreateCapacityHelp);
+  document.querySelector("#toggle-reservation-form").addEventListener("click", () => {
+    isCreateFormOpen = !isCreateFormOpen;
+    renderOwnerDashboard();
+  });
+  document.querySelector("#reservation-form")?.addEventListener("submit", handleCreateReservation);
+  document.querySelector("#adultCount")?.addEventListener("change", updateCreateCapacityHelp);
+  document.querySelector("#childCount")?.addEventListener("change", updateCreateCapacityHelp);
   document.querySelector("#reservation-search").addEventListener("input", (event) => {
     reservationSearch = event.target.value;
     refreshReservationsList();
@@ -414,30 +425,30 @@ function renderEmptyState() {
 
 function renderReservationCard(reservation) {
   return `
-    <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <article class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+      <div class="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div class="flex flex-wrap items-center gap-2">
             <h3 class="font-bold text-slate-950">${reservation.name || "Reserva sin nombre"}</h3>
             ${statusBadge(reservation.status)}
           </div>
-          <p class="mt-2 text-sm text-slate-600">${formatDate(reservation.checkIn)} -> ${formatDate(reservation.checkOut)} - ${compositionText(reservation)}</p>
-          <p class="mt-1 text-sm text-slate-600">WhatsApp: ${reservation.contactPhone || "-"}</p>
-          ${reservation.reservationReference ? `<p class="mt-1 text-sm text-slate-600">Referencia: ${reservation.reservationReference}</p>` : ""}
-          <p class="mt-1 text-sm font-semibold text-slate-500">${reservation.registeredCount}/${reservation.totalGuests} personas registradas</p>
+          <p class="mt-1.5 text-sm text-slate-600">${formatDate(reservation.checkIn)} -> ${formatDate(reservation.checkOut)} - ${compositionText(reservation)}</p>
+          <p class="mt-0.5 text-sm text-slate-600">WhatsApp: ${reservation.contactPhone || "-"}</p>
+          ${reservation.reservationReference ? `<p class="mt-0.5 text-sm text-slate-600">Referencia: ${reservation.reservationReference}</p>` : ""}
+          <p class="mt-0.5 text-sm font-semibold text-slate-500">${reservation.registeredCount}/${reservation.totalGuests} personas registradas</p>
           <p class="mt-1 text-xs font-semibold text-slate-400">Creada ${relativeTime(reservation.createdAt)}</p>
-          <div class="mt-3 flex gap-2">
+          <div class="mt-2 flex gap-2">
             <input class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600" value="${publicUrl(reservation.token)}" readonly />
             <button data-action="copy" data-id="${reservation.id}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-bold hover:bg-slate-50">${icon("copy")} Copiar enlace</button>
           </div>
         </div>
         <div class="grid grid-cols-2 gap-2 sm:w-72">
-          <button data-action="view" data-id="${reservation.id}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold hover:bg-slate-50">Ver reserva</button>
-          <button data-action="edit" data-id="${reservation.id}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold hover:bg-slate-50">Editar</button>
-          <button data-action="whatsapp" data-id="${reservation.id}" class="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-50">Enviar WhatsApp</button>
-          <button data-action="pdf" data-id="${reservation.id}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold hover:bg-slate-50">Exportar PDF</button>
-          <button disabled class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-400">Enviar SES - Proximamente</button>
-          <button data-action="delete" data-id="${reservation.id}" class="col-span-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-50">Borrar</button>
+          <button data-action="view" data-id="${reservation.id}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold hover:bg-slate-50">Ver reserva</button>
+          <button data-action="edit" data-id="${reservation.id}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold hover:bg-slate-50">Editar</button>
+          <button data-action="whatsapp" data-id="${reservation.id}" class="rounded-lg border border-emerald-200 px-3 py-1.5 text-sm font-bold text-emerald-700 hover:bg-emerald-50">Enviar WhatsApp</button>
+          <button data-action="pdf" data-id="${reservation.id}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold hover:bg-slate-50">Exportar PDF</button>
+          <button disabled class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-bold text-slate-400">Enviar SES - Proximamente</button>
+          <button data-action="delete" data-id="${reservation.id}" class="col-span-2 rounded-lg border border-red-200 px-3 py-1.5 text-sm font-bold text-red-700 hover:bg-red-50">Borrar</button>
         </div>
       </div>
     </article>
@@ -474,6 +485,7 @@ async function handleCreateReservation(event) {
       childCount,
     });
     toast("Reserva creada correctamente.", "success");
+    isCreateFormOpen = false;
     form.reset();
     await renderOwnerDashboard();
   } catch (error) {
