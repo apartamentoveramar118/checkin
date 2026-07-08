@@ -1,15 +1,13 @@
 const CACHE_NAME = "precheckin-digital-v2";
 const LOCAL_ASSETS = [
-  "./",
-  "./index.html",
-  "./styles.css",
-  "./app.js",
-  "./manifest.json",
-  "./icons/favicon-48.png",
-  "./icons/apple-touch-icon.png",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  "./icons/maskable-icon-512.png",
+  "/",
+  "/index.html",
+  "/manifest.json",
+  "/icons/favicon-48.png",
+  "/icons/apple-touch-icon.png",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/icons/maskable-icon-512.png",
 ];
 
 self.addEventListener("install", (event) => {
