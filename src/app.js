@@ -54,7 +54,7 @@ function getRoute() {
 function shell(content) {
   app.innerHTML = `
     <main class="min-h-screen">
-      <div class="mx-auto w-full max-w-6xl px-4 py-3 sm:px-6 sm:py-5 lg:px-8">
+      <div class="mx-auto w-full max-w-6xl px-4 py-2.5 sm:px-6 sm:py-4 lg:px-8">
         ${content}
       </div>
     </main>
@@ -128,10 +128,6 @@ function relativeTime(value) {
   if (hours < 24) return `Hace ${hours} hora${hours === 1 ? "" : "s"}`;
   const days = Math.floor(hours / 24);
   return `Hace ${days} dia${days === 1 ? "" : "s"}`;
-}
-
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 function isPendingStatus(status) {
@@ -226,41 +222,6 @@ function filteredReservations() {
   });
 }
 
-function dashboardStats() {
-  return {
-    total: reservations.length,
-    pending: reservations.filter((reservation) => isPendingStatus(reservation.status)).length,
-    completed: reservations.filter((reservation) => reservation.status === "completed").length,
-    today: reservations.filter((reservation) => reservation.checkIn === todayIso()).length,
-  };
-}
-
-function renderSummaryCard(label, value, iconName, tone) {
-  return `
-    <article class="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
-      <div class="flex items-center justify-between gap-2">
-        <div>
-          <p class="text-[11px] font-bold uppercase tracking-wide text-slate-500">${label}</p>
-          <p class="mt-0.5 text-xl font-bold text-slate-950">${value}</p>
-        </div>
-        <span class="rounded-md ${tone} p-1.5">${icon(iconName, "h-4 w-4")}</span>
-      </div>
-    </article>
-  `;
-}
-
-function renderDashboardSummary() {
-  const stats = dashboardStats();
-  return `
-    <section class="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
-      ${renderSummaryCard("Reservas", stats.total, "layers-3", "bg-slate-100 text-slate-700")}
-      ${renderSummaryCard("Pendientes", stats.pending, "clock-3", "bg-amber-100 text-amber-800")}
-      ${renderSummaryCard("Completadas", stats.completed, "check-circle-2", "bg-emerald-100 text-emerald-800")}
-      ${renderSummaryCard("Hoy", stats.today, "calendar-days", "bg-sky-100 text-sky-800")}
-    </section>
-  `;
-}
-
 function notifyRecentCompletions(items) {
   items
     .filter((reservation) => reservation.status === "completed" && reservation.completedAt)
@@ -277,9 +238,9 @@ async function renderOwnerDashboard() {
   notifyRecentCompletions(reservations);
   const visibleReservations = filteredReservations();
   shell(`
-    <header class="mb-3 flex items-center justify-between gap-3">
+    <header class="mb-2 flex items-center justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Pre-Check-in Digital</h1>
+        <h1 class="text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">Pre-Check-in Digital</h1>
       </div>
       <div class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-bold text-slate-500">
         <span class="h-2 w-2 rounded-full ${isSupabaseConfigured() ? "bg-emerald-500" : "bg-red-500"}"></span>
@@ -287,13 +248,11 @@ async function renderOwnerDashboard() {
       </div>
     </header>
 
-    ${renderDashboardSummary()}
-
-    <section class="space-y-3">
+    <section class="space-y-2.5">
       <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <button id="toggle-reservation-form" type="button" class="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3 text-left">
+        <button id="toggle-reservation-form" type="button" class="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-2.5 text-left">
           <span class="inline-flex items-center gap-2 text-sm font-bold text-slate-950">
-            ${icon("plus-circle", "h-5 w-5 text-slate-900")}
+            ${icon("plus-circle", "h-4 w-4 text-slate-900")}
             Nueva reserva
           </span>
           ${icon(isCreateFormOpen ? "chevron-up" : "chevron-down", "h-4 w-4 text-slate-500")}
@@ -327,8 +286,8 @@ async function renderOwnerDashboard() {
         ` : ""}
       </section>
 
-      <section>
-        <div class="mb-3 flex flex-col gap-3">
+      <section id="reservations-section" class="border-t border-slate-200 pt-2.5">
+        <div class="mb-2.5 flex flex-col gap-2.5">
           <div class="flex items-center justify-between">
             <h2 class="text-lg font-bold">Reservas</h2>
             <span id="visible-count" class="text-sm font-semibold text-slate-500">${visibleReservations.length} visibles</span>
@@ -488,6 +447,7 @@ async function handleCreateReservation(event) {
     isCreateFormOpen = false;
     form.reset();
     await renderOwnerDashboard();
+    document.querySelector("#reservations-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
     toast(error.message || "No se pudo crear la reserva.", "error");
     submitButton.disabled = false;
