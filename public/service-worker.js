@@ -1,7 +1,5 @@
-const CACHE_NAME = "precheckin-digital-v2";
+const CACHE_NAME = "precheckin-digital-v3";
 const LOCAL_ASSETS = [
-  "/",
-  "/index.html",
   "/manifest.json",
   "/icons/favicon-48.png",
   "/icons/apple-touch-icon.png",
@@ -27,9 +25,9 @@ self.addEventListener("activate", (event) => {
             .filter((cacheName) => cacheName !== CACHE_NAME)
             .map((cacheName) => caches.delete(cacheName)),
         ),
-      ),
+      )
+      .then(() => self.clients.claim()),
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
@@ -37,9 +35,14 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match("/")),
+    );
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      return cachedResponse || fetch(event.request);
-    }),
+    caches.match(event.request).then((cachedResponse) => cachedResponse || fetch(event.request)),
   );
 });
