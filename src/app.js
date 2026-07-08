@@ -184,7 +184,9 @@ function normalizePhoneForWhatsApp(phone) {
 
 function whatsappUrl(reservation) {
   const phone = normalizePhoneForWhatsApp(reservation.contactPhone);
-  const message = `Hola.\n\nPara agilizar vuestra llegada podeis completar el pre-check-in antes de entrar al apartamento.\n\nSolo tardareis unos minutos.\n\n${publicUrl(reservation.token)}\n\nMuchas gracias.`;
+  const name = reservation.name?.trim();
+  const greeting = name ? `Hola ${name} \u{1F44B}` : "Hola \u{1F44B}";
+  const message = `${greeting}\n\nMuchas gracias por vuestra reserva.\n\nPara agilizar la llegada al apartamento, pod\u00e9is completar el pre-check-in antes de la entrada.\n\nSolo os llevar\u00e1 unos minutos:\n\n${publicUrl(reservation.token)}\n\nSi ten\u00e9is cualquier duda, pod\u00e9is escribirme por aqu\u00ed.\n\n\u00a1Muchas gracias!`;
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
