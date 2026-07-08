@@ -8,6 +8,7 @@ let activeSignatures = [];
 let reservationFilter = "all";
 let reservationSearch = "";
 let isCreateFormOpen = false;
+const expandedCompletedReservations = new Set();
 const notifiedCompletedReservations = new Set();
 
 const statusLabels = {
@@ -385,6 +386,29 @@ function renderEmptyState() {
 }
 
 function renderReservationCard(reservation) {
+  const isCompleted = reservation.status === "completed";
+  const isExpanded = !isCompleted || expandedCompletedReservations.has(reservation.id);
+  const completedMeta = reservation.completedAt
+    ? `Completada ${relativeTime(reservation.completedAt)}`
+    : `${reservation.registeredCount}/${reservation.totalGuests} personas registradas`;
+
+  if (!isExpanded) {
+    return `
+      <article data-action="toggle-completed" data-id="${reservation.id}" class="cursor-pointer rounded-xl border border-emerald-100 bg-white p-3 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50/40">
+        <div class="flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="truncate font-bold text-slate-950">${reservation.name || "Reserva sin nombre"}</h3>
+              ${statusBadge(reservation.status)}
+            </div>
+            <p class="mt-1 text-sm font-semibold text-slate-500">${completedMeta}</p>
+          </div>
+          <span class="shrink-0 rounded-lg border border-slate-200 p-2 text-slate-500">${icon("chevron-down", "h-4 w-4")}</span>
+        </div>
+      </article>
+    `;
+  }
+
   return `
     <article class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
       <div class="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
@@ -392,6 +416,7 @@ function renderReservationCard(reservation) {
           <div class="flex flex-wrap items-center gap-2">
             <h3 class="font-bold text-slate-950">${reservation.name || "Reserva sin nombre"}</h3>
             ${statusBadge(reservation.status)}
+            ${isCompleted ? `<button data-action="toggle-completed" data-id="${reservation.id}" class="ml-auto inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold text-slate-500 hover:bg-slate-50 sm:ml-0">${icon("chevron-up", "h-3.5 w-3.5")} Contraer</button>` : ""}
           </div>
           <p class="mt-1.5 text-sm text-slate-600">${formatDate(reservation.checkIn)} -> ${formatDate(reservation.checkOut)} - ${compositionText(reservation)}</p>
           <p class="mt-0.5 text-sm text-slate-600">WhatsApp: ${reservation.contactPhone || "-"}</p>
@@ -498,6 +523,16 @@ async function handleReservationAction(event) {
   const action = button.dataset.action;
   const id = button.dataset.id;
   const reservation = reservations.find((item) => item.id === id);
+
+  if (action === "toggle-completed") {
+    if (expandedCompletedReservations.has(id)) {
+      expandedCompletedReservations.delete(id);
+    } else {
+      expandedCompletedReservations.add(id);
+    }
+    refreshReservationsList();
+    return;
+  }
 
   if (action === "copy") {
     await navigator.clipboard.writeText(publicUrl(reservation.token));
