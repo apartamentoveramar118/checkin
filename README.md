@@ -87,18 +87,26 @@ Si `VITE_SUPABASE_URL` o `VITE_SUPABASE_ANON_KEY` no estan configuradas, la app 
 - `guest_index`
 - `guest_type`: `adult` o `child`
 - `nombre_completo`
-- `tipo_documento`: `nif`, `pasaporte` u `otros`, solo adultos
-- `id_documento`: solo adultos
+- `nombre`
+- `apellidos`
+- `sexo`
+- `nacionalidad`
+- `tipo_documento`: `nif`, `pasaporte` u `otros`
+- `id_documento`
 - `num_soporte`: obligatorio solo para adultos con `tipo_documento = nif`
 - `fecha_nacimiento`
+- `fecha_expedicion`
+- `pais_expedicion`
 - `direccion`
+- `municipio`
 - `codigo_postal`: solo adultos
+- `pais`
 - `telefono`: heredado desde `reservations.contact_phone`
 - `telefono_padre_madre`: compatibilidad, heredado desde `reservations.contact_phone` en ninos
 - `parentesco`: compatibilidad
-- `parentesco_responsable`: Adulto 1 si hay ninos
-- `parentesco_menor`: cada nino
-- `firma_digital`: obligatoria en adultos, null en ninos
+- `parentesco_responsable`: menores con adulto responsable
+- `parentesco_menor`: compatibilidad
+- `firma_digital`: obligatoria en adultos y en menores de 14 a 17 anos
 - `created_at`
 
 ## Reglas de capacidad
@@ -152,12 +160,15 @@ Huesped:
 - Abre enlace.
 - La app carga la reserva por token desde Supabase.
 - Completa tarjetas separadas: `Adulto 1`, `Adulto 2`, `Nino 1`, etc.
+- La edad se calcula automaticamente desde la fecha de nacimiento.
+- Los adultos rellenan nombre, apellidos, sexo, fecha nacimiento, nacionalidad, documento, expedicion, direccion, municipio, codigo postal, pais y firma.
 - Los adultos eligen tipo de documento: NIF, Pasaporte u Otros.
 - Solo los adultos con NIF rellenan numero de soporte obligatorio.
-- Los adultos siempre rellenan documento, fecha nacimiento, direccion, codigo postal y firma obligatoria.
+- Los adultos deben tener 18 anos o mas.
 - El huesped no escribe telefono: se hereda siempre de `contact_phone` de la reserva.
-- Si hay ninos, Adulto 1 rellena `parentesco responsable`.
-- Los ninos solo rellenan nombre, fecha nacimiento y `parentesco del menor`.
+- Los ninos rellenan nombre, apellidos, sexo, fecha nacimiento, nacionalidad y parentesco con el adulto responsable.
+- Si un nino tiene menos de 14 anos, no se pide documento ni firma.
+- Si un nino tiene entre 14 y 17 anos, aparecen automaticamente documento, fecha/pais de expedicion y firma obligatoria.
 - La app copia direccion y codigo postal de Adulto 1 a cada nino antes de guardar.
 - Envia.
 - Se insertan huespedes en `guests`.

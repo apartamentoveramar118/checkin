@@ -24,12 +24,20 @@ create table if not exists public.guests (
   guest_index int not null,
   guest_type text not null default 'adult',
   tipo_documento text,
+  nombre text,
+  apellidos text,
+  sexo text,
+  nacionalidad text,
   nombre_completo text not null,
   id_documento text,
   num_soporte text,
   fecha_nacimiento date not null,
+  fecha_expedicion date,
+  pais_expedicion text,
   direccion text not null,
+  municipio text,
   codigo_postal text,
+  pais text,
   telefono text,
   telefono_padre_madre text,
   parentesco text,
@@ -81,6 +89,14 @@ end $$;
 
 alter table public.guests add column if not exists guest_type text not null default 'adult';
 alter table public.guests add column if not exists tipo_documento text;
+alter table public.guests add column if not exists nombre text;
+alter table public.guests add column if not exists apellidos text;
+alter table public.guests add column if not exists sexo text;
+alter table public.guests add column if not exists nacionalidad text;
+alter table public.guests add column if not exists fecha_expedicion date;
+alter table public.guests add column if not exists pais_expedicion text;
+alter table public.guests add column if not exists municipio text;
+alter table public.guests add column if not exists pais text;
 alter table public.guests add column if not exists telefono text;
 alter table public.guests add column if not exists telefono_padre_madre text;
 alter table public.guests add column if not exists parentesco text;
