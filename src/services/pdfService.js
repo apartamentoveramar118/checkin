@@ -77,14 +77,21 @@ function guestRows(guest) {
   const isChild = guest.guestType === "child";
 
   if (isChild) {
-    return [
+    const rows = [
       ["Nombre", guest.fullName],
       ["Fecha nacimiento", formatDate(guest.birthDate)],
-      ["Direccion", guest.address],
-      ["Codigo postal", guest.postalCode],
-      ["Telefono", guest.phone || guest.parentPhone],
-      ["Parentesco del menor", guest.relationshipMinor || guest.relationship],
+      ["Dirección", guest.address],
+      ["Municipio", guest.city],
+      ["Provincia", guest.province],
+      ["Código postal", guest.postalCode],
+      ["País", guest.country],
+      ["Teléfono", guest.phone || guest.parentPhone],
+      ["Parentesco responsable", guest.relationshipResponsible || guest.relationship],
     ];
+    if (guest.documentType) rows.splice(1, 0, ["Tipo documento", documentTypeLabel(guest.documentType)]);
+    if (guest.documentId) rows.splice(2, 0, ["Documento", guest.documentId]);
+    if (guest.supportNumber) rows.splice(3, 0, ["Número soporte", guest.supportNumber]);
+    return rows;
   }
 
   const rows = [
@@ -92,12 +99,15 @@ function guestRows(guest) {
     ["Tipo documento", documentTypeLabel(guest.documentType)],
     ["Documento", guest.documentId],
     ["Fecha nacimiento", formatDate(guest.birthDate)],
-    ["Direccion", guest.address],
-    ["Codigo postal", guest.postalCode],
-    ["Telefono", guest.phone || guest.parentPhone],
+    ["Dirección", guest.address],
+    ["Municipio", guest.city],
+    ["Provincia", guest.province],
+    ["Código postal", guest.postalCode],
+    ["País", guest.country],
+    ["Teléfono", guest.phone || guest.parentPhone],
   ];
 
-  if (guest.supportNumber) rows.splice(3, 0, ["Numero soporte", guest.supportNumber]);
+  if (guest.supportNumber) rows.splice(3, 0, ["Número soporte", guest.supportNumber]);
   if (guest.relationshipResponsible) rows.push(["Parentesco responsable", guest.relationshipResponsible]);
 
   return rows;
@@ -134,7 +144,7 @@ export function exportReservationPdf(details) {
       ["Nombre", reservation.name || "Sin nombre"],
       ["Referencia Booking", reservation.reservationReference],
       ["Fecha de la reserva", formatDate(reservation.reservationDate)],
-      ["Telefono contacto", reservation.contactPhone],
+      ["Teléfono contacto", reservation.contactPhone],
       ["Entrada", formatDate(reservation.checkIn)],
       ["Salida", formatDate(reservation.checkOut)],
       ["Composicion", compositionText(reservation)],
@@ -146,7 +156,7 @@ export function exportReservationPdf(details) {
 
   guests.forEach((guest) => {
     const isChild = guest.guestType === "child";
-    const title = `${isChild ? "Nino" : "Adulto"} ${guest.guestIndex}`;
+    const title = `${isChild ? "Niño" : "Adulto"} ${guest.guestIndex}`;
 
     doc.addPage();
     doc.setFillColor(248, 250, 252);
@@ -161,7 +171,7 @@ export function exportReservationPdf(details) {
 
     const y = drawRows(doc, guestRows(guest), 48);
 
-    if (!isChild && guest.signature) {
+    if (guest.signature) {
       doc.setFont("helvetica", "bold");
       doc.setTextColor(15, 23, 42);
       doc.text("Firma:", 20, y + 8);

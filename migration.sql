@@ -26,4 +26,7 @@ alter table public.guests
   add column if not exists municipio text;
 
 alter table public.guests
+  add column if not exists provincia text;
+
+alter table public.guests
   add column if not exists pais text;

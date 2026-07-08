@@ -36,6 +36,7 @@ create table if not exists public.guests (
   pais_expedicion text,
   direccion text not null,
   municipio text,
+  provincia text,
   codigo_postal text,
   pais text,
   telefono text,
@@ -96,6 +97,7 @@ alter table public.guests add column if not exists nacionalidad text;
 alter table public.guests add column if not exists fecha_expedicion date;
 alter table public.guests add column if not exists pais_expedicion text;
 alter table public.guests add column if not exists municipio text;
+alter table public.guests add column if not exists provincia text;
 alter table public.guests add column if not exists pais text;
 alter table public.guests add column if not exists telefono text;
 alter table public.guests add column if not exists telefono_padre_madre text;

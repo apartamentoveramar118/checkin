@@ -90,15 +90,16 @@ Si `VITE_SUPABASE_URL` o `VITE_SUPABASE_ANON_KEY` no estan configuradas, la app 
 - `nombre`
 - `apellidos`
 - `sexo`
-- `nacionalidad`
+- `nacionalidad`: reservado para futura integracion, no se pide en el MVP
 - `tipo_documento`: `nif`, `pasaporte` u `otros`
 - `id_documento`
 - `num_soporte`: obligatorio solo para adultos con `tipo_documento = nif`
 - `fecha_nacimiento`
-- `fecha_expedicion`
-- `pais_expedicion`
+- `fecha_expedicion`: reservado para futura integracion, no se pide en el MVP
+- `pais_expedicion`: reservado para futura integracion, no se pide en el MVP
 - `direccion`
 - `municipio`
+- `provincia`
 - `codigo_postal`: solo adultos
 - `pais`
 - `telefono`: heredado desde `reservations.contact_phone`
@@ -159,17 +160,18 @@ Huesped:
 
 - Abre enlace.
 - La app carga la reserva por token desde Supabase.
-- Completa tarjetas separadas: `Adulto 1`, `Adulto 2`, `Nino 1`, etc.
+- Completa tarjetas separadas: `Adulto 1`, `Adulto 2`, `Niño 1`, etc.
 - La edad se calcula automaticamente desde la fecha de nacimiento.
-- Los adultos rellenan nombre, apellidos, sexo, fecha nacimiento, nacionalidad, documento, expedicion, direccion, municipio, codigo postal, pais y firma.
+- Los adultos rellenan nombre, apellidos, sexo, fecha nacimiento, documento, dirección, municipio, provincia, código postal, país y firma.
 - Los adultos eligen tipo de documento: NIF, Pasaporte u Otros.
-- Solo los adultos con NIF rellenan numero de soporte obligatorio.
-- Los adultos deben tener 18 anos o mas.
-- El huesped no escribe telefono: se hereda siempre de `contact_phone` de la reserva.
-- Los ninos rellenan nombre, apellidos, sexo, fecha nacimiento, nacionalidad y parentesco con el adulto responsable.
-- Si un nino tiene menos de 14 anos, no se pide documento ni firma.
-- Si un nino tiene entre 14 y 17 anos, aparecen automaticamente documento, fecha/pais de expedicion y firma obligatoria.
-- La app copia direccion y codigo postal de Adulto 1 a cada nino antes de guardar.
+- Solo los adultos con NIF rellenan número de soporte obligatorio.
+- Los adultos deben tener 18 años o más.
+- El huésped no escribe teléfono: se hereda siempre de `contact_phone` de la reserva.
+- Si hay niños, los adultos rellenan parentesco con el adulto responsable.
+- Los niños rellenan nombre, apellidos, sexo, fecha nacimiento y parentesco con el adulto responsable.
+- Si un niño tiene menos de 14 años, no se pide documento ni firma.
+- Si un niño tiene entre 14 y 17 años, aparecen automaticamente documento, número de soporte y firma obligatoria.
+- La app copia dirección y código postal de Adulto 1 a cada niño antes de guardar.
 - Envia.
 - Se insertan huespedes en `guests`.
 - La reserva pasa a `completed` y guarda `completed_at`.
@@ -183,7 +185,7 @@ El PDF lee datos reales desde Supabase.
 - Incluye telefono de contacto y localizador Booking / referencia si existe.
 - Una pagina por persona.
 - Adultos: tipo de documento, documento, fecha nacimiento, direccion, codigo postal, telefono heredado y firma. El soporte solo aparece si existe. El parentesco responsable aparece en Adulto 1 si hay menores.
-- Ninos: fecha nacimiento, direccion, codigo postal, telefono heredado y parentesco del menor. No muestra DNI, soporte ni firma.
+- Niños: fecha nacimiento, dirección, municipio, provincia, código postal, teléfono heredado y parentesco responsable. Si el menor tiene documento y firma, también se muestran.
 
 ## SES Hospedajes
 

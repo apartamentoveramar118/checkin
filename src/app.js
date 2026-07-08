@@ -203,8 +203,8 @@ function calculateAge(birthDate, referenceDate = new Date()) {
 
 function ageHintText(age, isChild = false) {
   if (age === null) return "La edad se calculara automaticamente.";
-  if (isChild && age >= 14 && age < 18) return `Edad: ${age} anos (Documento y firma obligatorios)`;
-  return `Edad: ${age} anos`;
+  if (isChild && age >= 14 && age < 18) return `Edad: ${age} años (Documento y firma obligatorios)`;
+  return `Edad: ${age} años`;
 }
 
 function normalizePhoneForWhatsApp(phone) {
@@ -294,19 +294,19 @@ async function renderOwnerDashboard() {
           <form id="reservation-form" class="border-t border-slate-100 p-4">
             <div class="grid gap-3 sm:grid-cols-2">
               ${field("name", "Nombre de la reserva (opcional)", "text", "", 'placeholder="Ej. Familia Martin"')}
-              ${field("contactPhone", "Telefono WhatsApp de contacto", "tel", "", 'required placeholder="Ej. 612345678"')}
+              ${field("contactPhone", "Teléfono WhatsApp de contacto", "tel", "", 'required placeholder="Ej. 612345678"')}
               ${field("reservationReference", "Localizador Booking / referencia", "text", "", 'placeholder="Ej. BK123456"')}
               ${field("reservationDate", "Fecha de la reserva", "date", todayInputDate(), "required")}
               ${field("checkIn", "Fecha entrada", "date", "", "required")}
               ${field("checkOut", "Fecha salida", "date", "", "required")}
               <div class="grid grid-cols-2 gap-3">
                 <div class="field">
-                  <label for="adultCount">Numero de adultos</label>
+                  <label for="adultCount">Número de adultos</label>
                   <select id="adultCount" name="adultCount" required>${selectOptions([1, 2, 3, 4], 1)}</select>
                   <p class="error-message">Minimo 1 adulto.</p>
                 </div>
                 <div class="field">
-                  <label for="childCount">Numero de ninos</label>
+                  <label for="childCount">Número de niños</label>
                   <select id="childCount" name="childCount" required>${selectOptions([0, 1, 2, 3], 0)}</select>
                   <p class="error-message">Maximo 3 ninos.</p>
                 </div>
@@ -620,8 +620,8 @@ async function renderReservationDetailsView(id) {
     ["Entrada", formatDate(reservation.checkIn)],
     ["Salida", formatDate(reservation.checkOut)],
     ["Adultos", reservation.adultCount],
-    ["Ninos", reservation.childCount],
-    ["Telefono", reservation.contactPhone || "-"],
+    ["Niños", reservation.childCount],
+    ["Teléfono", reservation.contactPhone || "-"],
     ["Referencia Booking", reservation.reservationReference || "-"],
     ["Fecha de la reserva", formatDate(reservation.reservationDate)],
     ["Estado", statusLabels[reservation.status] || reservation.status],
@@ -664,12 +664,15 @@ function renderGuestReadCard(guest) {
     ["Nombre", guest.fullName],
     ["Documento", `${guest.documentId} (${documentTypeLabel(guest.documentType)})`],
     ["Fecha nacimiento", guest.birthDate],
-    ["Direccion", guest.address],
-    ["Codigo postal", guest.postalCode],
+    ["Dirección", guest.address],
+    ["Municipio", guest.city],
+    ["Provincia", guest.province],
+    ["Código postal", guest.postalCode],
+    ["País", guest.country],
   ];
 
   if (guest.phone) {
-    adultRows.push(["Telefono", guest.phone]);
+    adultRows.push(["Teléfono", guest.phone]);
   }
 
   if (guest.relationshipResponsible) {
@@ -677,19 +680,26 @@ function renderGuestReadCard(guest) {
   }
 
   if (guest.supportNumber) {
-    adultRows.splice(2, 0, ["Numero soporte", guest.supportNumber]);
+    adultRows.splice(2, 0, ["Número soporte", guest.supportNumber]);
   }
 
-  const rows = isChild
-    ? [
-        ["Nombre", guest.fullName],
-        ["Fecha nacimiento", guest.birthDate],
-        ["Direccion", guest.address],
-        ["Codigo postal", guest.postalCode],
-        ["Telefono", guest.phone || guest.parentPhone],
-        ["Parentesco del menor", guest.relationshipMinor || guest.relationship],
-      ]
-    : adultRows;
+  const childRows = [
+    ["Nombre", guest.fullName],
+    ["Fecha nacimiento", guest.birthDate],
+    ["Dirección", guest.address],
+    ["Municipio", guest.city],
+    ["Provincia", guest.province],
+    ["Código postal", guest.postalCode],
+    ["País", guest.country],
+    ["Teléfono", guest.phone || guest.parentPhone],
+    ["Parentesco responsable", guest.relationshipResponsible || guest.relationship],
+  ];
+
+  if (guest.documentType) childRows.splice(1, 0, ["Tipo documento", documentTypeLabel(guest.documentType)]);
+  if (guest.documentId) childRows.splice(2, 0, ["Documento", guest.documentId]);
+  if (guest.supportNumber) childRows.splice(3, 0, ["Número soporte", guest.supportNumber]);
+
+  const rows = isChild ? childRows : adultRows;
 
   return `
     <article class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -697,7 +707,7 @@ function renderGuestReadCard(guest) {
       <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
         ${rows.map(([label, value]) => `<div><dt class="font-bold text-slate-500">${label}</dt><dd class="mt-1 font-semibold">${value || "-"}</dd></div>`).join("")}
       </dl>
-      ${!isChild && guest.signature ? `<img class="mt-4 h-28 rounded-lg border border-slate-200 bg-white object-contain" src="${guest.signature}" alt="Firma ${title}" />` : ""}
+      ${guest.signature ? `<img class="mt-4 h-28 rounded-lg border border-slate-200 bg-white object-contain" src="${guest.signature}" alt="Firma ${title}" />` : ""}
     </article>
   `;
 }
@@ -710,18 +720,18 @@ async function renderEditReservation(id) {
       <h1 class="mb-5 text-xl font-bold">Editar reserva</h1>
       <div class="space-y-4">
         ${field("name", "Nombre de la reserva", "text", reservation.name)}
-        ${field("contactPhone", "Telefono WhatsApp de contacto", "tel", reservation.contactPhone, "required")}
+        ${field("contactPhone", "Teléfono WhatsApp de contacto", "tel", reservation.contactPhone, "required")}
         ${field("reservationReference", "Localizador Booking / referencia", "text", reservation.reservationReference)}
         ${field("reservationDate", "Fecha de la reserva", "date", reservation.reservationDate || todayInputDate(), "required")}
         ${field("checkIn", "Fecha entrada", "date", reservation.checkIn, "required")}
         ${field("checkOut", "Fecha salida", "date", reservation.checkOut, "required")}
         <div class="grid grid-cols-2 gap-3">
           <div class="field">
-            <label for="adultCount">Numero de adultos</label>
+            <label for="adultCount">Número de adultos</label>
             <select id="adultCount" name="adultCount" required>${selectOptions([1, 2, 3, 4], reservation.adultCount)}</select>
           </div>
           <div class="field">
-            <label for="childCount">Numero de ninos</label>
+            <label for="childCount">Número de niños</label>
             <select id="childCount" name="childCount" required>${selectOptions([0, 1, 2, 3], reservation.childCount)}</select>
           </div>
         </div>
@@ -826,7 +836,6 @@ function renderAdultFormCard(index, hasChildren) {
           <p class="mt-1 text-xs font-semibold text-slate-500" data-age-hint="adult-${index}">La edad se calculara automaticamente.</p>
           <p class="error-message">Campo obligatorio.</p>
         </div>
-        ${field(`adult_${index}_nationality`, "Nacionalidad", "text", "ESP", "required")}
         <div class="field">
           <label for="adult_${index}_documentType">Tipo de documento</label>
           <select id="adult_${index}_documentType" name="adult_${index}_documentType" data-document-type="${index}" required>
@@ -842,16 +851,16 @@ function renderAdultFormCard(index, hasChildren) {
           <p class="error-message">Campo obligatorio.</p>
         </div>
         <div class="field" data-support-wrapper="${index}">
-          <label for="adult_${index}_supportNumber">Numero de soporte</label>
+          <label for="adult_${index}_supportNumber">Número de soporte</label>
           <input id="adult_${index}_supportNumber" name="adult_${index}_supportNumber" type="text" required />
-          <p class="error-message">Numero de soporte obligatorio para NIF.</p>
+          <p class="error-message">Número de soporte obligatorio para NIF.</p>
         </div>
-        ${field(`adult_${index}_issueDate`, "Fecha expedicion", "date", "", "required")}
-        ${field(`adult_${index}_issueCountry`, "Pais expedicion", "text", "ESP", "required")}
-        <div class="sm:col-span-2">${field(`adult_${index}_address`, "Direccion", "text", "", "required")}</div>
+        <div class="sm:col-span-2">${field(`adult_${index}_address`, "Dirección", "text", "", "required")}</div>
         ${field(`adult_${index}_city`, "Municipio", "text", "", "required")}
-        ${field(`adult_${index}_postalCode`, "Codigo postal", "text", "", 'required inputmode="numeric"')}
-        ${field(`adult_${index}_country`, "Pais", "text", "ESP", "required")}
+        ${field(`adult_${index}_province`, "Provincia", "text", "", "required")}
+        ${field(`adult_${index}_postalCode`, "Código postal", "text", "", 'required inputmode="numeric"')}
+        ${field(`adult_${index}_country`, "País", "text", "ESP", "required")}
+        ${hasChildren ? selectField(`adult_${index}_relationshipResponsible`, "Parentesco con el adulto responsable", responsibleRelationshipOptions, "required") : ""}
       </div>
       ${renderSignatureField(`adult-${index}`, "Firma digital", true)}
     </section>
@@ -889,7 +898,7 @@ function updateDocumentTypeFields(select) {
 function renderChildFormCard(index) {
   return `
     <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" data-guest-card="child-${index}">
-      <h2 class="mb-4 text-lg font-bold">Nino ${index}</h2>
+      <h2 class="mb-4 text-lg font-bold">Niño ${index}</h2>
       <div class="grid gap-4 sm:grid-cols-2">
         ${field(`child_${index}_firstName`, "Nombre", "text", "", "required")}
         ${field(`child_${index}_lastName`, "Apellidos", "text", "", "required")}
@@ -900,7 +909,6 @@ function renderChildFormCard(index) {
           <p class="mt-1 text-xs font-semibold text-slate-500" data-age-hint="child-${index}">La edad se calculara automaticamente.</p>
           <p class="error-message">Campo obligatorio.</p>
         </div>
-        ${field(`child_${index}_nationality`, "Nacionalidad", "text", "ESP", "required")}
         ${selectField(`child_${index}_relationshipResponsible`, "Parentesco con el adulto responsable", responsibleRelationshipOptions, "required")}
         <div class="hidden sm:col-span-2" data-minor-document-fields="child-${index}">
           <div class="grid gap-4 sm:grid-cols-2">
@@ -914,9 +922,8 @@ function renderChildFormCard(index) {
               </select>
               <p class="error-message">Campo obligatorio.</p>
             </div>
-            ${field(`child_${index}_documentId`, "Numero documento", "text")}
-            ${field(`child_${index}_issueDate`, "Fecha expedicion", "date")}
-            ${field(`child_${index}_issueCountry`, "Pais expedicion", "text", "ESP")}
+            ${field(`child_${index}_documentId`, "Documento / NIF", "text")}
+            ${field(`child_${index}_supportNumber`, "Número de soporte", "text")}
           </div>
           ${renderSignatureField(`child-${index}`, "Firma digital", false)}
         </div>
@@ -1030,7 +1037,10 @@ async function handleGuestSubmit(event, reservation) {
   const guests = [];
   const validationErrors = [];
   let adultOneAddress = "";
+  let adultOneCity = "";
+  let adultOneProvince = "";
   let adultOnePostalCode = "";
+  let adultOneCountry = "";
   const contactPhone = reservation.contactPhone || "";
 
   if (!contactPhone.trim()) {
@@ -1051,33 +1061,36 @@ async function handleGuestSubmit(event, reservation) {
       lastName,
       fullName: [firstName, lastName].filter(Boolean).join(" "),
       sex: readRequiredWithMessage(form, `adult_${index}_sex`, `Falta sexo en ${label}`, validationErrors),
-      nationality: readRequiredWithMessage(form, `adult_${index}_nationality`, `Falta nacionalidad en ${label}`, validationErrors),
+      nationality: "",
       documentType: readRequiredWithMessage(form, `adult_${index}_documentType`, `Falta tipo de documento en ${label}`, validationErrors),
       documentId: readRequiredWithMessage(form, `adult_${index}_documentId`, `Falta documento en ${label}`, validationErrors),
       supportNumber: readOptional(form, `adult_${index}_supportNumber`),
       birthDate: readRequiredWithMessage(form, `adult_${index}_birthDate`, `Falta fecha de nacimiento en ${label}`, validationErrors),
-      issueDate: readRequiredWithMessage(form, `adult_${index}_issueDate`, `Falta fecha de expedicion en ${label}`, validationErrors),
-      issueCountry: readRequiredWithMessage(form, `adult_${index}_issueCountry`, `Falta pais de expedicion en ${label}`, validationErrors),
-      address: readRequiredWithMessage(form, `adult_${index}_address`, `Falta direccion en ${label}`, validationErrors),
+      issueDate: "",
+      issueCountry: "",
+      address: readRequiredWithMessage(form, `adult_${index}_address`, `Falta dirección en ${label}`, validationErrors),
       city: readRequiredWithMessage(form, `adult_${index}_city`, `Falta municipio en ${label}`, validationErrors),
-      postalCode: readRequiredWithMessage(form, `adult_${index}_postalCode`, `Falta codigo postal en ${label}`, validationErrors),
-      country: readRequiredWithMessage(form, `adult_${index}_country`, `Falta pais en ${label}`, validationErrors),
+      province: readRequiredWithMessage(form, `adult_${index}_province`, `Falta provincia en ${label}`, validationErrors),
+      postalCode: readRequiredWithMessage(form, `adult_${index}_postalCode`, `Falta código postal en ${label}`, validationErrors),
+      country: readRequiredWithMessage(form, `adult_${index}_country`, `Falta país en ${label}`, validationErrors),
       phone: contactPhone,
-      relationshipResponsible: "",
+      relationshipResponsible: reservation.childCount > 0
+        ? readRequiredWithMessage(form, `adult_${index}_relationshipResponsible`, `Falta parentesco con adulto responsable en ${label}`, validationErrors)
+        : "",
       relationshipMinor: "",
       relationship: "",
       signature: signature?.pad.toDataURL("image/png"),
     };
 
     if (values.documentType === "nif") {
-      values.supportNumber = readRequiredWithMessage(form, `adult_${index}_supportNumber`, `Falta numero de soporte en ${label}`, validationErrors);
+      values.supportNumber = readRequiredWithMessage(form, `adult_${index}_supportNumber`, `Falta número de soporte en ${label}`, validationErrors);
     } else {
       values.supportNumber = "";
     }
 
     const adultAge = calculateAge(values.birthDate);
     if (adultAge !== null && adultAge < 18) {
-      validationErrors.push(`${label} debe tener 18 anos o mas`);
+      validationErrors.push(`${label} debe tener 18 años o más`);
     }
 
     const missingSignature = !signature || signature.pad.isEmpty();
@@ -1086,14 +1099,17 @@ async function handleGuestSubmit(event, reservation) {
 
     if (index === 1) {
       adultOneAddress = values.address || "";
+      adultOneCity = values.city || "";
+      adultOneProvince = values.province || "";
       adultOnePostalCode = values.postalCode || "";
+      adultOneCountry = values.country || "";
     }
 
     guests.push(values);
   }
 
   for (let index = 1; index <= reservation.childCount; index += 1) {
-    const label = `Nino ${index}`;
+    const label = `Niño ${index}`;
     const birthDate = readRequiredWithMessage(form, `child_${index}_birthDate`, `Falta fecha de nacimiento en ${label}`, validationErrors);
     const age = calculateAge(birthDate);
     const needsDocument = age !== null && age >= 14 && age < 18;
@@ -1108,9 +1124,12 @@ async function handleGuestSubmit(event, reservation) {
       fullName: [firstName, lastName].filter(Boolean).join(" "),
       sex: readRequiredWithMessage(form, `child_${index}_sex`, `Falta sexo en ${label}`, validationErrors),
       birthDate,
-      nationality: readRequiredWithMessage(form, `child_${index}_nationality`, `Falta nacionalidad en ${label}`, validationErrors),
+      nationality: "",
       address: adultOneAddress,
+      city: adultOneCity,
+      province: adultOneProvince,
       postalCode: adultOnePostalCode,
+      country: adultOneCountry,
       phone: contactPhone,
       parentPhone: contactPhone,
       relationshipResponsible: readRequiredWithMessage(form, `child_${index}_relationshipResponsible`, `Falta parentesco con adulto responsable en ${label}`, validationErrors),
@@ -1124,20 +1143,18 @@ async function handleGuestSubmit(event, reservation) {
         ? readRequiredWithMessage(form, `child_${index}_documentId`, `Falta documento en ${label}`, validationErrors)
         : "",
       supportNumber: "",
-      issueDate: needsDocument
-        ? readRequiredWithMessage(form, `child_${index}_issueDate`, `Falta fecha de expedicion en ${label}`, validationErrors)
-        : "",
-      issueCountry: needsDocument
-        ? readRequiredWithMessage(form, `child_${index}_issueCountry`, `Falta pais de expedicion en ${label}`, validationErrors)
-        : "",
-      city: "",
-      country: "",
+      issueDate: "",
+      issueCountry: "",
     };
+
+    if (needsDocument) {
+      values.supportNumber = readRequiredWithMessage(form, `child_${index}_supportNumber`, `Falta número de soporte en ${label}`, validationErrors);
+    }
 
     const missingSignature = needsDocument && (!signature || signature.pad.isEmpty());
     form.querySelector(`[data-signature-field="child-${index}"]`)?.classList.toggle("has-error", missingSignature);
     if (missingSignature) validationErrors.push(`Falta firma en ${label}`);
-    if (age !== null && age >= 18) validationErrors.push(`${label} debe ser menor de 18 anos`);
+    if (age !== null && age >= 18) validationErrors.push(`${label} debe ser menor de 18 años`);
 
     guests.push(values);
   }
