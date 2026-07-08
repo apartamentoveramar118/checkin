@@ -89,7 +89,7 @@ Si `VITE_SUPABASE_URL` o `VITE_SUPABASE_ANON_KEY` no estan configuradas, la app 
 - `nombre_completo`
 - `nombre`
 - `apellidos`
-- `sexo`
+- `sexo`: reservado para compatibilidad, no se pide en el MVP
 - `nacionalidad`: reservado para futura integracion, no se pide en el MVP
 - `tipo_documento`: `nif`, `pasaporte` u `otros`
 - `id_documento`
@@ -162,13 +162,13 @@ Huesped:
 - La app carga la reserva por token desde Supabase.
 - Completa tarjetas separadas: `Adulto 1`, `Adulto 2`, `Niño 1`, etc.
 - La edad se calcula automaticamente desde la fecha de nacimiento.
-- Los adultos rellenan nombre, apellidos, sexo, fecha nacimiento, documento, dirección, municipio, provincia, código postal, país y firma.
+- Los adultos rellenan nombre, apellidos, fecha nacimiento, documento, dirección, municipio, provincia, código postal, país y firma.
 - Los adultos eligen tipo de documento: NIF, Pasaporte u Otros.
 - Solo los adultos con NIF rellenan número de soporte obligatorio.
 - Los adultos deben tener 18 años o más.
 - El huésped no escribe teléfono: se hereda siempre de `contact_phone` de la reserva.
 - Si hay niños, los adultos rellenan parentesco con el adulto responsable.
-- Los niños rellenan nombre, apellidos, sexo, fecha nacimiento y parentesco con el adulto responsable.
+- Los niños rellenan nombre, apellidos, fecha nacimiento y parentesco con el adulto responsable.
 - Si un niño tiene menos de 14 años, no se pide documento ni firma.
 - Si un niño tiene entre 14 y 17 años, aparecen automaticamente documento, número de soporte y firma obligatoria.
 - La app copia dirección y código postal de Adulto 1 a cada niño antes de guardar.

@@ -86,7 +86,7 @@ function guestRows(guest) {
       ["Código postal", guest.postalCode],
       ["País", guest.country],
       ["Teléfono", guest.phone || guest.parentPhone],
-      ["Parentesco responsable", guest.relationshipResponsible || guest.relationship],
+      ["Parentesco", guest.relationshipMinor || guest.relationship],
     ];
     if (guest.documentType) rows.splice(1, 0, ["Tipo documento", documentTypeLabel(guest.documentType)]);
     if (guest.documentId) rows.splice(2, 0, ["Documento", guest.documentId]);

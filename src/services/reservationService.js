@@ -205,8 +205,8 @@ function normalizeGuestForDb(guest) {
     pais_expedicion: guest.issueCountry?.trim() || null,
     codigo_postal: guest.postalCode?.trim() || null,
     telefono_padre_madre: guest.phone?.trim() || guest.parentPhone?.trim() || null,
-    parentesco: guest.relationshipResponsible?.trim() || guest.relationshipMinor?.trim() || guest.relationship?.trim() || null,
-    parentesco_responsable: guest.relationshipResponsible?.trim() || null,
+    parentesco: guest.relationshipMinor?.trim() || guest.relationshipResponsible?.trim() || guest.relationship?.trim() || null,
+    parentesco_responsable: null,
     parentesco_menor: guest.relationshipMinor?.trim() || null,
   };
 }

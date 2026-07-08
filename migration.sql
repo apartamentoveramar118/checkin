@@ -30,3 +30,12 @@ alter table public.guests
 
 alter table public.guests
   add column if not exists pais text;
+
+alter table public.guests
+  drop constraint if exists guests_parentesco_responsable_check;
+
+alter table public.guests
+  add constraint guests_parentesco_responsable_check check (
+    parentesco_responsable is null
+    or parentesco_responsable in ('padre', 'madre', 'tutor', 'tutora', 'abuelo', 'abuela', 'tio', 'tia')
+  );

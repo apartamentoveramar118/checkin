@@ -166,16 +166,22 @@ const responsibleRelationshipOptions = [
   { value: "padre", label: "Padre" },
   { value: "madre", label: "Madre" },
   { value: "tutor", label: "Tutor" },
+  { value: "tutora", label: "Tutora" },
   { value: "abuelo", label: "Abuelo" },
   { value: "abuela", label: "Abuela" },
-  { value: "tio", label: "Tio" },
-  { value: "tia", label: "Tia" },
+  { value: "tio", label: "Tío" },
+  { value: "tia", label: "Tía" },
 ];
 
-const sexOptions = [
-  { value: "M", label: "Masculino" },
-  { value: "F", label: "Femenino" },
-  { value: "O", label: "Otro" },
+const minorRelationshipOptions = [
+  { value: "hijo", label: "Hijo" },
+  { value: "hija", label: "Hija" },
+  { value: "sobrino", label: "Sobrino" },
+  { value: "sobrina", label: "Sobrina" },
+  { value: "nieto", label: "Nieto" },
+  { value: "nieta", label: "Nieta" },
+  { value: "tutelado", label: "Tutelado" },
+  { value: "tutelada", label: "Tutelada" },
 ];
 
 function selectField(name, label, options, attrs = "", placeholder = "Selecciona") {
@@ -692,7 +698,7 @@ function renderGuestReadCard(guest) {
     ["Código postal", guest.postalCode],
     ["País", guest.country],
     ["Teléfono", guest.phone || guest.parentPhone],
-    ["Parentesco responsable", guest.relationshipResponsible || guest.relationship],
+    ["Parentesco", guest.relationshipMinor || guest.relationship],
   ];
 
   if (guest.documentType) childRows.splice(1, 0, ["Tipo documento", documentTypeLabel(guest.documentType)]);
@@ -829,7 +835,6 @@ function renderAdultFormCard(index, hasChildren) {
       <div class="grid gap-4 sm:grid-cols-2">
         ${field(`adult_${index}_firstName`, "Nombre", "text", "", "required")}
         ${field(`adult_${index}_lastName`, "Apellidos", "text", "", "required")}
-        ${selectField(`adult_${index}_sex`, "Sexo", sexOptions, "required")}
         <div class="field">
           <label for="adult_${index}_birthDate">Fecha nacimiento</label>
           <input id="adult_${index}_birthDate" name="adult_${index}_birthDate" type="date" data-age-input="adult-${index}" required />
@@ -902,14 +907,13 @@ function renderChildFormCard(index) {
       <div class="grid gap-4 sm:grid-cols-2">
         ${field(`child_${index}_firstName`, "Nombre", "text", "", "required")}
         ${field(`child_${index}_lastName`, "Apellidos", "text", "", "required")}
-        ${selectField(`child_${index}_sex`, "Sexo", sexOptions, "required")}
         <div class="field">
           <label for="child_${index}_birthDate">Fecha nacimiento</label>
           <input id="child_${index}_birthDate" name="child_${index}_birthDate" type="date" data-age-input="child-${index}" required />
           <p class="mt-1 text-xs font-semibold text-slate-500" data-age-hint="child-${index}">La edad se calculara automaticamente.</p>
           <p class="error-message">Campo obligatorio.</p>
         </div>
-        ${selectField(`child_${index}_relationshipResponsible`, "Parentesco con el adulto responsable", responsibleRelationshipOptions, "required")}
+        ${selectField(`child_${index}_relationshipMinor`, "Parentesco con el adulto responsable", minorRelationshipOptions, "required")}
         <div class="hidden sm:col-span-2" data-minor-document-fields="child-${index}">
           <div class="grid gap-4 sm:grid-cols-2">
             <div class="field">
@@ -1060,7 +1064,7 @@ async function handleGuestSubmit(event, reservation) {
       firstName,
       lastName,
       fullName: [firstName, lastName].filter(Boolean).join(" "),
-      sex: readRequiredWithMessage(form, `adult_${index}_sex`, `Falta sexo en ${label}`, validationErrors),
+      sex: "",
       nationality: "",
       documentType: readRequiredWithMessage(form, `adult_${index}_documentType`, `Falta tipo de documento en ${label}`, validationErrors),
       documentId: readRequiredWithMessage(form, `adult_${index}_documentId`, `Falta documento en ${label}`, validationErrors),
@@ -1122,7 +1126,7 @@ async function handleGuestSubmit(event, reservation) {
       firstName,
       lastName,
       fullName: [firstName, lastName].filter(Boolean).join(" "),
-      sex: readRequiredWithMessage(form, `child_${index}_sex`, `Falta sexo en ${label}`, validationErrors),
+      sex: "",
       birthDate,
       nationality: "",
       address: adultOneAddress,
@@ -1132,8 +1136,8 @@ async function handleGuestSubmit(event, reservation) {
       country: adultOneCountry,
       phone: contactPhone,
       parentPhone: contactPhone,
-      relationshipResponsible: readRequiredWithMessage(form, `child_${index}_relationshipResponsible`, `Falta parentesco con adulto responsable en ${label}`, validationErrors),
-      relationshipMinor: "",
+      relationshipResponsible: "",
+      relationshipMinor: readRequiredWithMessage(form, `child_${index}_relationshipMinor`, `Falta parentesco con adulto responsable en ${label}`, validationErrors),
       relationship: "",
       signature: needsDocument ? signature?.pad.toDataURL("image/png") : null,
       documentType: needsDocument

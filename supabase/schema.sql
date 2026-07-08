@@ -181,7 +181,7 @@ begin
     alter table public.guests
       add constraint guests_parentesco_responsable_check check (
         parentesco_responsable is null
-        or parentesco_responsable in ('padre', 'madre', 'tutor', 'abuelo', 'abuela', 'tio', 'tia')
+        or parentesco_responsable in ('padre', 'madre', 'tutor', 'tutora', 'abuelo', 'abuela', 'tio', 'tia')
       );
   end if;
 
