@@ -69,6 +69,7 @@ Si `VITE_SUPABASE_URL` o `VITE_SUPABASE_ANON_KEY` no estan configuradas, la app 
 - `reservation_name`
 - `contact_phone`
 - `reservation_reference`
+- `reservation_date`
 - `check_in`
 - `check_out`
 - `adult_count`

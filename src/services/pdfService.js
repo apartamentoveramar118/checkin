@@ -133,6 +133,7 @@ export function exportReservationPdf(details) {
     [
       ["Nombre", reservation.name || "Sin nombre"],
       ["Referencia Booking", reservation.reservationReference],
+      ["Fecha de la reserva", formatDate(reservation.reservationDate)],
       ["Telefono contacto", reservation.contactPhone],
       ["Entrada", formatDate(reservation.checkIn)],
       ["Salida", formatDate(reservation.checkOut)],

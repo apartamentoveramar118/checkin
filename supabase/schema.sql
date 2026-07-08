@@ -6,6 +6,7 @@ create table if not exists public.reservations (
   reservation_name text,
   contact_phone text not null,
   reservation_reference text,
+  reservation_date date not null default current_date,
   check_in date not null,
   check_out date not null,
   adult_count int not null default 1,
@@ -43,6 +44,7 @@ alter table public.reservations add column if not exists adult_count int not nul
 alter table public.reservations add column if not exists child_count int not null default 0;
 alter table public.reservations add column if not exists contact_phone text;
 alter table public.reservations add column if not exists reservation_reference text;
+alter table public.reservations add column if not exists reservation_date date not null default current_date;
 
 update public.reservations
 set contact_phone = 'SIN_TELEFONO'

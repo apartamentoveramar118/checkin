@@ -108,6 +108,12 @@ function formatDate(value) {
   return new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "short", year: "numeric" }).format(date);
 }
 
+function todayInputDate() {
+  const date = new Date();
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return offsetDate.toISOString().slice(0, 10);
+}
+
 function formatDateTime(value) {
   if (!value) return "-";
   return new Intl.DateTimeFormat("es-ES", {
@@ -266,6 +272,7 @@ async function renderOwnerDashboard() {
               ${field("name", "Nombre de la reserva (opcional)", "text", "", 'placeholder="Ej. Familia Martin"')}
               ${field("contactPhone", "Telefono WhatsApp de contacto", "tel", "", 'required placeholder="Ej. 612345678"')}
               ${field("reservationReference", "Localizador Booking / referencia", "text", "", 'placeholder="Ej. BK123456"')}
+              ${field("reservationDate", "Fecha de la reserva", "date", todayInputDate(), "required")}
               ${field("checkIn", "Fecha entrada", "date", "", "required")}
               ${field("checkOut", "Fecha salida", "date", "", "required")}
               <div class="grid grid-cols-2 gap-3">
@@ -454,7 +461,7 @@ async function handleCreateReservation(event) {
     return;
   }
 
-  if (!data.checkIn || !data.checkOut || !validateCounts(adultCount, childCount)) {
+  if (!data.reservationDate || !data.checkIn || !data.checkOut || !validateCounts(adultCount, childCount)) {
     toast("Revisa fechas y capacidad: maximo 4 personas, minimo 1 adulto.", "error");
     return;
   }
@@ -467,6 +474,7 @@ async function handleCreateReservation(event) {
       ...data,
       contactPhone: data.contactPhone,
       reservationReference: data.reservationReference,
+      reservationDate: data.reservationDate,
       adultCount,
       childCount,
     });
@@ -591,6 +599,7 @@ async function renderReservationDetailsView(id) {
     ["Ninos", reservation.childCount],
     ["Telefono", reservation.contactPhone || "-"],
     ["Referencia Booking", reservation.reservationReference || "-"],
+    ["Fecha de la reserva", formatDate(reservation.reservationDate)],
     ["Estado", statusLabels[reservation.status] || reservation.status],
     ["Fecha creacion", `${relativeTime(reservation.createdAt)} - ${formatDateTime(reservation.createdAt)}`],
     ["Fecha completado", reservation.completedAt ? `${relativeTime(reservation.completedAt)} - ${formatDateTime(reservation.completedAt)}` : "-"],
@@ -679,6 +688,7 @@ async function renderEditReservation(id) {
         ${field("name", "Nombre de la reserva", "text", reservation.name)}
         ${field("contactPhone", "Telefono WhatsApp de contacto", "tel", reservation.contactPhone, "required")}
         ${field("reservationReference", "Localizador Booking / referencia", "text", reservation.reservationReference)}
+        ${field("reservationDate", "Fecha de la reserva", "date", reservation.reservationDate || todayInputDate(), "required")}
         ${field("checkIn", "Fecha entrada", "date", reservation.checkIn, "required")}
         ${field("checkOut", "Fecha salida", "date", reservation.checkOut, "required")}
         <div class="grid grid-cols-2 gap-3">
@@ -718,10 +728,16 @@ async function renderEditReservation(id) {
       return;
     }
 
+    if (!data.reservationDate) {
+      toast("Falta fecha de la reserva.", "error");
+      return;
+    }
+
     await reservationService.updateReservation(id, {
       name: data.name,
       contactPhone: data.contactPhone,
       reservationReference: data.reservationReference,
+      reservationDate: data.reservationDate,
       checkIn: data.checkIn,
       checkOut: data.checkOut,
       adultCount,

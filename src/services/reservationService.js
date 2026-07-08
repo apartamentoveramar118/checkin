@@ -30,6 +30,7 @@ function normalizeReservation(row) {
     name: row.reservation_name || row.name || "",
     contactPhone: row.contact_phone || row.contactPhone || "",
     reservationReference: row.reservation_reference || row.reservationReference || "",
+    reservationDate: row.reservation_date || row.reservationDate || "",
     checkIn: row.check_in || row.checkIn,
     checkOut: row.check_out || row.checkOut,
     adultCount,
@@ -95,6 +96,7 @@ function toDbReservation(input) {
   if ("name" in input) output.reservation_name = input.name?.trim() || null;
   if ("contactPhone" in input) output.contact_phone = input.contactPhone?.trim();
   if ("reservationReference" in input) output.reservation_reference = input.reservationReference?.trim() || null;
+  if ("reservationDate" in input) output.reservation_date = input.reservationDate;
   if ("checkIn" in input) output.check_in = input.checkIn;
   if ("checkOut" in input) output.check_out = input.checkOut;
   if ("adultCount" in input || "childCount" in input) {
@@ -209,6 +211,7 @@ export const reservationService = {
       reservation_name: input.name?.trim() || null,
       contact_phone: input.contactPhone?.trim(),
       reservation_reference: input.reservationReference?.trim() || null,
+      reservation_date: input.reservationDate,
       check_in: input.checkIn,
       check_out: input.checkOut,
       adult_count: counts.adultCount,
@@ -221,6 +224,10 @@ export const reservationService = {
 
     if (!reservation.contact_phone) {
       throw new Error("El telefono WhatsApp de contacto es obligatorio.");
+    }
+
+    if (!reservation.reservation_date) {
+      throw new Error("La fecha de la reserva es obligatoria.");
     }
 
     const { data, error } = await client
