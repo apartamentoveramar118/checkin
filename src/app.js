@@ -942,7 +942,7 @@ function renderAdultFormCard(index, hasChildren) {
         ${field(`adult_${index}_province`, "Provincia", "text", "", "required")}
         ${field(`adult_${index}_postalCode`, "Código postal", "text", "", 'required inputmode="numeric"')}
         ${field(`adult_${index}_country`, "País", "text", "ESP", "required")}
-        ${hasChildren ? selectField(`adult_${index}_relationshipResponsible`, "Parentesco con el adulto responsable", responsibleRelationshipOptions, "required") : ""}
+        ${hasChildren ? selectField(`adult_${index}_relationshipResponsible`, "Relación con el menor", responsibleRelationshipOptions, "required") : ""}
       </div>
       ${renderSignatureField(`adult-${index}`, "Firma digital", true)}
     </section>
@@ -1008,7 +1008,7 @@ function renderChildFormCard(index) {
           <p class="mt-1 text-xs font-semibold text-slate-500" data-age-hint="child-${index}">La edad se calculara automaticamente.</p>
           <p class="error-message">Campo obligatorio.</p>
         </div>
-        ${selectField(`child_${index}_relationshipMinor`, "Parentesco con el adulto responsable", minorRelationshipOptions, "required")}
+        ${selectField(`child_${index}_relationshipMinor`, "Relación con el adulto acompañante", minorRelationshipOptions, "required")}
         <div class="hidden sm:col-span-2" data-minor-document-fields="child-${index}">
           <div class="grid gap-4 sm:grid-cols-2">
             <div class="field">
