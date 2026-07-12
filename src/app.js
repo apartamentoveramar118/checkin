@@ -238,8 +238,70 @@ function normalizePhoneForWhatsApp(phone) {
 function whatsappUrl(reservation) {
   const phone = normalizePhoneForWhatsApp(reservation.contactPhone);
   const name = reservation.name?.trim();
-  const greeting = name ? `Hola ${name} \u{1F44B}` : "Hola \u{1F44B}";
-  const message = `${greeting}\n\nMuchas gracias por vuestra reserva.\n\nPara agilizar la llegada al apartamento, pod\u00e9is completar el pre-check-in antes de la entrada.\n\nSolo os llevar\u00e1 unos minutos:\n\n${publicUrl(reservation.token)}\n\nSi ten\u00e9is cualquier duda, pod\u00e9is escribirme por aqu\u00ed.\n\n\u00a1Muchas gracias!`;
+  const greeting = name ? `Hola ${name}! \u{1F44B}` : "Hola! \u{1F44B}";
+  const message = `${greeting}
+
+Soy Nieves, del Apartamento Veramar Fuengirola.
+
+\u00a1Muchas gracias por vuestra reserva! \u{1F60A} Esperamos que disfrut\u00e9is de una estancia estupenda.
+
+Queremos dejaros algunos detalles importantes para vuestra llegada.
+
+\u{1F4DD} PRE-CHECK-IN ONLINE
+
+Para agilizar vuestra llegada, os agradecer\u00edamos que completarais el pre-check-in antes del d\u00eda de entrada.
+
+Solo os llevar\u00e1 unos minutos y as\u00ed, cuando llegu\u00e9is, tendremos toda la documentaci\u00f3n preparada.
+
+\u{1F517} ${publicUrl(reservation.token)}
+
+\u{1F552} HORARIOS
+
+\u2022 Check-in: de 15:00 a 21:00 h.
+\u2022 Check-out: hasta las 12:00 h.
+
+\u{1F511} ENTREGA DE LLAVES
+
+La entrega de llaves ser\u00e1 presencial en el apartamento.
+
+El d\u00eda anterior o la misma ma\u00f1ana de vuestra llegada nos pondremos en contacto con vosotros para conocer vuestra hora aproximada de llegada y as\u00ed organizarnos mejor.
+
+Si ya la conoc\u00e9is, pod\u00e9is indic\u00e1rnosla respondiendo a este mismo mensaje.
+
+\u{1F697} PARKING
+
+El apartamento dispone de parking comunitario.
+
+En ocasiones puede estar completo, pero los veh\u00edculos entran y salen continuamente, por lo que normalmente suele haber plazas disponibles m\u00e1s tarde o incluso al d\u00eda siguiente.
+
+Adem\u00e1s, en las calles cercanas encontrar\u00e9is aparcamiento gratuito.
+
+\u{1F698} MANDO DEL PARKING
+
+Para entregar el mando solicitamos una fianza de 40 \u20ac en efectivo, que se devolver\u00e1 \u00edntegramente el d\u00eda de salida al devolver el mando.
+
+\u{1F4CC} DOCUMENTACI\u00d3N OBLIGATORIA
+
+En cumplimiento del Real Decreto 933/2021, todas las personas alojadas deber\u00e1n presentar un documento de identidad v\u00e1lido el d\u00eda de la llegada (DNI o equivalente en pa\u00edses Schengen, NIE espa\u00f1ol o pasaporte).
+
+En caso de no presentarlo, no podremos permitir el acceso al apartamento, sin que ello suponga una cancelaci\u00f3n gratuita de la reserva.
+
+\u{1F6AD} ESPACIO LIBRE DE HUMOS
+
+Nuestro compromiso es ofrecer un alojamiento 100 % libre de humos.
+
+No est\u00e1 permitido fumar ni vapear dentro del apartamento.
+
+En caso de incumplimiento, se aplicar\u00e1 un cargo adicional de 100 \u20ac en concepto de limpieza.
+
+Si ten\u00e9is cualquier duda antes de vuestra llegada, estaremos encantados de ayudaros.
+
+\u00a1Os esperamos muy pronto en Fuengirola! \u2600\uFE0F
+
+Un saludo,
+
+Nieves
+Apartamento Veramar Fuengirola`;
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
