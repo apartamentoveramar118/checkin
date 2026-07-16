@@ -171,6 +171,8 @@ const responsibleRelationshipOptions = [
   { value: "abuela", label: "Abuela" },
   { value: "tio", label: "Tío" },
   { value: "tia", label: "Tía" },
+  { value: "hermano", label: "Hermano" },
+  { value: "hermana", label: "Hermana" },
 ];
 
 const minorRelationshipOptions = [
@@ -182,6 +184,8 @@ const minorRelationshipOptions = [
   { value: "nieta", label: "Nieta" },
   { value: "tutelado", label: "Tutelado" },
   { value: "tutelada", label: "Tutelada" },
+  { value: "hermano", label: "Hermano" },
+  { value: "hermana", label: "Hermana" },
 ];
 
 function selectField(name, label, options, attrs = "", placeholder = "Selecciona") {
