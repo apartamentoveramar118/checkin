@@ -49,3 +49,19 @@ alter table public.guests
     parentesco_menor is null
     or parentesco_menor in ('hijo', 'hija', 'nieto', 'nieta', 'sobrino', 'sobrina', 'tutelado', 'tutelada', 'hermano', 'hermana')
   );
+
+alter table public.guests
+  drop constraint if exists guests_child_required_fields_check;
+
+alter table public.guests
+  add constraint guests_child_required_fields_check check (
+    guest_type <> 'child'
+    or (
+      (
+        parentesco_menor is not null and length(trim(parentesco_menor)) > 0
+      )
+      or (
+        parentesco is not null and length(trim(parentesco)) > 0
+      )
+    )
+  );

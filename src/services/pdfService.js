@@ -108,7 +108,7 @@ function guestRows(guest) {
   ];
 
   if (guest.supportNumber) rows.splice(3, 0, ["Número soporte", guest.supportNumber]);
-  if (guest.relationshipResponsible) rows.push(["Parentesco responsable", guest.relationshipResponsible]);
+  if (guest.relationshipResponsible) rows.push(["Parentesco", guest.relationshipResponsible]);
 
   return rows;
 }

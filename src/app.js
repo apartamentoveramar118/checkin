@@ -764,7 +764,7 @@ function renderGuestReadCard(guest) {
   }
 
   if (guest.relationshipResponsible) {
-    adultRows.push(["Parentesco responsable", guest.relationshipResponsible]);
+    adultRows.push(["Parentesco", guest.relationshipResponsible]);
   }
 
   if (guest.supportNumber) {
@@ -1201,7 +1201,7 @@ async function handleGuestSubmit(event, reservation) {
       country: readRequiredWithMessage(form, `adult_${index}_country`, `Falta país en ${label}`, validationErrors),
       phone: contactPhone,
       relationshipResponsible: reservation.childCount > 0
-        ? readRequiredWithMessage(form, `adult_${index}_relationshipResponsible`, `Falta parentesco con adulto responsable en ${label}`, validationErrors)
+        ? readRequiredWithMessage(form, `adult_${index}_relationshipResponsible`, `Falta parentesco en ${label}`, validationErrors)
         : "",
       relationshipMinor: "",
       relationship: "",
@@ -1274,7 +1274,7 @@ async function handleGuestSubmit(event, reservation) {
       phone: contactPhone,
       parentPhone: contactPhone,
       relationshipResponsible: "",
-      relationshipMinor: readRequiredWithMessage(form, `child_${index}_relationshipMinor`, `Falta parentesco con adulto responsable en ${label}`, validationErrors),
+      relationshipMinor: readRequiredWithMessage(form, `child_${index}_relationshipMinor`, `Falta parentesco en ${label}`, validationErrors),
       relationship: "",
       signature: needsDocument ? signature?.pad.toDataURL("image/png") : null,
       documentType: needsDocument
