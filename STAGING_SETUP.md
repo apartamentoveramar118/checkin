@@ -47,3 +47,4 @@ El archivo `migration.sql` contiene cambios incrementales para instalaciones ant
 
 Antes de aplicarlo en staging, comparar su estado con el resultado de `schema.sql`. Mantener las migraciones versionadas y ejecutarlas manualmente en el proyecto Supabase de staging.
 
+Verificación de deployment automático de staging.
