@@ -21,12 +21,15 @@ Deno.serve(async (request) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceRoleKey) return json({ error: "Function not configured" }, 500);
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error("public-checkin is not configured: missing Supabase service credentials");
+    return json({ error: "Function not configured", code: "function_not_configured" }, 500);
+  }
 
   const body = await request.json().catch(() => null);
   const operation = body?.operation;
   const token = typeof body?.token === "string" ? body.token.trim() : "";
-  if (!tokenPattern.test(token)) return json({ error: "Invalid token" }, 400);
+  if (!tokenPattern.test(token)) return json({ error: "Invalid token", code: "invalid_token" }, 400);
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -39,8 +42,11 @@ Deno.serve(async (request) => {
       .eq("token", token)
       .maybeSingle();
 
-    if (error) return json({ error: "Could not load reservation" }, 500);
-    if (!data) return json({ error: "Reservation not found" }, 404);
+    if (error) {
+      console.error("getReservation query failed", { code: error.code, message: error.message, details: error.details });
+      return json({ error: "Could not load reservation", code: "reservation_query_failed" }, 500);
+    }
+    if (!data) return json({ error: "Reservation not found", code: "reservation_not_found" }, 404);
     return json({ reservation: data });
   }
 
@@ -53,10 +59,13 @@ Deno.serve(async (request) => {
       .eq("token", token)
       .maybeSingle();
 
-    if (reservationError) return json({ error: "Could not load reservation" }, 500);
-    if (!reservation) return json({ error: "Reservation not found" }, 404);
-    if (["completed", "ses_sent"].includes(reservation.status)) return json({ error: "Reservation already completed" }, 409);
-    if (!["pending", "in_progress"].includes(reservation.status)) return json({ error: "Reservation is not open" }, 409);
+    if (reservationError) {
+      console.error("submitCheckin reservation query failed", { code: reservationError.code, message: reservationError.message, details: reservationError.details });
+      return json({ error: "Could not load reservation", code: "reservation_query_failed" }, 500);
+    }
+    if (!reservation) return json({ error: "Reservation not found", code: "reservation_not_found" }, 404);
+    if (["completed", "ses_sent"].includes(reservation.status)) return json({ error: "Reservation already completed", code: "reservation_completed" }, 409);
+    if (!["pending", "in_progress"].includes(reservation.status)) return json({ error: "Reservation is not open", code: "reservation_not_open" }, 409);
 
     const guests = body.guests;
     const adults = guests.filter((guest) => guest?.guestType === "adult");
@@ -97,7 +106,10 @@ Deno.serve(async (request) => {
       p_token: token,
       p_guests: dbGuests,
     });
-    if (submitError) return json({ error: "Could not save check-in" }, 400);
+    if (submitError) {
+      console.error("submitCheckin RPC failed", { code: submitError.code, message: submitError.message, details: submitError.details });
+      return json({ error: "Could not save check-in", code: "submit_failed" }, 400);
+    }
     return json({ success: true });
   }
 

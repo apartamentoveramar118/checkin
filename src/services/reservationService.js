@@ -285,14 +285,23 @@ export const reservationService = {
 
   async getReservationByToken(token) {
     const client = requireSupabase();
-    const { data, error } = await client
-      .from("reservations")
-      .select("*")
-      .eq("token", token)
-      .single();
+    const normalizedToken = String(token || "").trim();
+    if (!/^[a-f0-9]{32}$/i.test(normalizedToken)) {
+      throw new Error("El enlace de check-in no es valido.");
+    }
 
-    if (error) throw error;
-    return normalizeReservation(data);
+    const { data, error } = await client.functions.invoke("public-checkin", {
+      body: { operation: "getReservation", token: normalizedToken },
+    });
+
+    if (error) {
+      if (error.context?.status === 404) throw new Error("No se encontro la reserva.");
+      if (error.context?.status === 409) throw new Error("El registro ya esta completado.");
+      throw new Error("No se pudo cargar la reserva. Intentalo de nuevo.");
+    }
+
+    if (!data?.reservation) throw new Error("No se encontro la reserva.");
+    return normalizeReservation(data.reservation);
   },
 
   async submitGuestsByToken(token, guests) {
