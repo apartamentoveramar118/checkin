@@ -82,7 +82,12 @@ Deno.serve(async (request) => {
     });
     const xml = await response.text();
     if (!response.ok) {
-      console.error("SES PRE HTTP error", response.status);
+      console.error("SES PRE HTTP error", {
+        status: response.status,
+        statusText: response.statusText,
+        contentType: response.headers.get("content-type") || "",
+        body: xml.slice(0, 2000),
+      });
       return json({ ok: false, error: { code: `HTTP_${response.status}`, message: "SES PRE no está disponible." } }, 502);
     }
     return json({ ...parseCatalog(xml), catalog: body.catalog });
