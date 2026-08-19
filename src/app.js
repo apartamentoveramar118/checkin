@@ -2,6 +2,7 @@ import { isSupabaseConfigured } from "./services/config.js";
 import { supabaseClient } from "./services/supabaseClient.js";
 import { reservationService } from "./services/reservationService.js";
 import { exportReservationPdf } from "./services/pdfService.js";
+import { getSesCatalog } from "./services/sesService.js";
 
 const app = document.querySelector("#app");
 let reservations = [];
@@ -42,6 +43,11 @@ function icon(name, className = "h-4 w-4") {
 
 function refreshIcons() {
   window.lucide?.createIcons();
+}
+
+function isStagingHost() {
+  return ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    || window.location.hostname.includes("precheckin-staging");
 }
 
 function publicUrl(token) {
@@ -497,6 +503,21 @@ async function renderOwnerDashboard() {
       </div>
     </header>
 
+    ${isStagingHost() ? `
+      <section class="mb-2.5 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-sm font-bold text-slate-900">Prueba SES</span>
+          <select id="ses-catalog" class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-semibold">
+            <option value="TIPO_PAGO">Tipo de pago</option>
+            <option value="TIPO_PARENTESCO">Parentesco</option>
+            <option value="TIPO_DOCUMENTO">Tipo de documento</option>
+          </select>
+          <button id="ses-catalog-submit" type="button" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold hover:bg-slate-50">Consultar catálogo</button>
+        </div>
+        <pre id="ses-catalog-result" class="mt-2 hidden max-h-48 overflow-auto rounded-lg bg-slate-50 p-2 text-xs text-slate-700"></pre>
+      </section>
+    ` : ""}
+
     <section class="space-y-2.5">
       <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
         <button id="toggle-reservation-form" type="button" class="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-2.5 text-left">
@@ -566,6 +587,7 @@ async function renderOwnerDashboard() {
     renderOwnerDashboard();
   });
   document.querySelector("#owner-logout").addEventListener("click", handleOwnerLogout);
+  document.querySelector("#ses-catalog-submit")?.addEventListener("click", handleSesCatalogTest);
   document.querySelector("#reservation-form")?.addEventListener("submit", handleCreateReservation);
   document.querySelector("#adultCount")?.addEventListener("change", updateCreateCapacityHelp);
   document.querySelector("#childCount")?.addEventListener("change", updateCreateCapacityHelp);
@@ -1483,6 +1505,25 @@ async function boot() {
     }
 
     await renderOwnerDashboard();
+  }
+}
+
+async function handleSesCatalogTest(event) {
+  const button = event.currentTarget;
+  const result = document.querySelector("#ses-catalog-result");
+  const catalog = document.querySelector("#ses-catalog").value;
+  button.disabled = true;
+  button.textContent = "Consultando...";
+  result.classList.remove("hidden");
+  result.textContent = "Consultando SES PRE...";
+  try {
+    const response = await getSesCatalog(catalog);
+    result.textContent = JSON.stringify(response.items, null, 2);
+  } catch (error) {
+    result.textContent = error.message || "No se pudo consultar el catálogo.";
+  } finally {
+    button.disabled = false;
+    button.textContent = "Consultar catálogo";
   }
 }
 

@@ -1,3 +1,16 @@
+import { supabaseClient } from "./supabaseClient.js";
+
+const SES_CATALOGS = new Set(["TIPO_PAGO", "TIPO_PARENTESCO", "TIPO_DOCUMENTO"]);
+
+export async function getSesCatalog(catalog) {
+  if (!SES_CATALOGS.has(catalog)) throw new Error("Catalogo SES no permitido.");
+  if (!supabaseClient) throw new Error("Supabase no esta configurado.");
+  const { data, error } = await supabaseClient.functions.invoke("ses-hospedajes", { body: { operation: "getCatalog", catalog } });
+  if (error) throw new Error("No se pudo consultar el catalogo SES.");
+  if (!data?.ok) throw new Error(data?.error?.message || "SES devolvio un error.");
+  return data;
+}
+
 export function prepareReservationForSES(details) {
   return {
     reservationId: details.reservation.id,
