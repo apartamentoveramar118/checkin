@@ -45,7 +45,60 @@ Deno.serve(async (request) => {
   }
 
   if (operation === "submitCheckin") {
-    return json({ error: "Not implemented. The current browser flow remains active." }, 501);
+    if (!Array.isArray(body?.guests)) return json({ error: "Guests are required" }, 400);
+
+    const { data: reservation, error: reservationError } = await adminClient
+      .from("reservations")
+      .select("id,adult_count,child_count,total_guests,status,contact_phone")
+      .eq("token", token)
+      .maybeSingle();
+
+    if (reservationError) return json({ error: "Could not load reservation" }, 500);
+    if (!reservation) return json({ error: "Reservation not found" }, 404);
+    if (["completed", "ses_sent"].includes(reservation.status)) return json({ error: "Reservation already completed" }, 409);
+    if (!["pending", "in_progress"].includes(reservation.status)) return json({ error: "Reservation is not open" }, 409);
+
+    const guests = body.guests;
+    const adults = guests.filter((guest) => guest?.guestType === "adult");
+    const children = guests.filter((guest) => guest?.guestType === "child");
+    if (adults.length !== reservation.adult_count || children.length !== reservation.child_count) {
+      return json({ error: "Guest count does not match reservation" }, 400);
+    }
+    if (guests.some((guest) => !["adult", "child"].includes(guest?.guestType) || !guest?.fullName?.trim() || !guest?.birthDate)) {
+      return json({ error: "Required guest data is missing" }, 400);
+    }
+
+    const dbGuests = guests.map((guest) => ({
+      guest_index: Number(guest.guestIndex),
+      guest_type: guest.guestType,
+      nombre_completo: String(guest.fullName).trim(),
+      nombre: guest.firstName?.trim() || null,
+      apellidos: guest.lastName?.trim() || null,
+      fecha_nacimiento: guest.birthDate,
+      direccion: guest.address?.trim() || null,
+      municipio: guest.city?.trim() || null,
+      provincia: guest.province?.trim() || null,
+      codigo_postal: guest.postalCode?.trim() || null,
+      pais: guest.country?.trim() || null,
+      telefono: reservation.contact_phone,
+      telefono_padre_madre: guest.guestType === "child" ? reservation.contact_phone : null,
+      parentesco: guest.relationship?.trim() || null,
+      parentesco_responsable: guest.relationshipResponsible?.trim() || null,
+      parentesco_menor: guest.relationshipMinor?.trim() || null,
+      firma_digital: guest.signature || null,
+      tipo_documento: guest.documentType || null,
+      id_documento: guest.documentId?.trim() || null,
+      num_soporte: guest.supportNumber?.trim() || null,
+      fecha_expedicion: guest.issueDate || null,
+      pais_expedicion: guest.issueCountry?.trim() || null,
+    }));
+
+    const { error: submitError } = await adminClient.rpc("submit_checkin_by_token", {
+      p_token: token,
+      p_guests: dbGuests,
+    });
+    if (submitError) return json({ error: "Could not save check-in" }, 400);
+    return json({ success: true });
   }
 
   return json({ error: "Unknown operation" }, 400);

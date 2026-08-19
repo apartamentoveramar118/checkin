@@ -1022,7 +1022,6 @@ async function renderGuestCheckin(token) {
     return;
   }
 
-  await reservationService.updateReservation(reservation.id, { status: "in_progress" });
   shell(`
     <header class="mx-auto mb-5 max-w-3xl">
       <p class="text-sm font-bold uppercase tracking-wide text-slate-500">Bienvenido</p>
@@ -1040,7 +1039,7 @@ async function renderGuestCheckin(token) {
   initializeGuestSignatures();
   initializeDocumentTypeSelectors();
   initializeAgeFields();
-  document.querySelector("#guest-checkin-form").addEventListener("submit", (event) => handleGuestSubmit(event, reservation));
+  document.querySelector("#guest-checkin-form").addEventListener("submit", (event) => handleGuestSubmit(event, reservation, token));
 }
 
 function renderAdultFormCard(index, hasChildren) {
@@ -1290,7 +1289,7 @@ function readOptional(form, name) {
   return form.elements[name]?.value || "";
 }
 
-async function handleGuestSubmit(event, reservation) {
+async function handleGuestSubmit(event, reservation, token) {
   event.preventDefault();
   const form = event.currentTarget;
   const guests = [];
@@ -1300,13 +1299,6 @@ async function handleGuestSubmit(event, reservation) {
   let adultOneProvince = "";
   let adultOnePostalCode = "";
   let adultOneCountry = "";
-  const contactPhone = reservation.contactPhone || "";
-
-  if (!contactPhone.trim()) {
-    toast("La reserva no tiene telefono WhatsApp de contacto.", "error");
-    return;
-  }
-
   for (let index = 1; index <= reservation.adultCount; index += 1) {
     const signature = activeSignatures.find((item) => item.index === `adult-${index}`);
     const card = form.querySelector(`[data-guest-card="adult-${index}"]`);
@@ -1332,7 +1324,7 @@ async function handleGuestSubmit(event, reservation) {
       province: readRequiredWithMessage(form, `adult_${index}_province`, `Falta provincia en ${label}`, validationErrors),
       postalCode: readRequiredWithMessage(form, `adult_${index}_postalCode`, `Falta código postal en ${label}`, validationErrors),
       country: readRequiredWithMessage(form, `adult_${index}_country`, `Falta país en ${label}`, validationErrors),
-      phone: contactPhone,
+      phone: "",
       relationshipResponsible: reservation.childCount > 0
         ? readRequiredWithMessage(form, `adult_${index}_relationshipResponsible`, `Falta parentesco en ${label}`, validationErrors)
         : "",
@@ -1404,8 +1396,8 @@ async function handleGuestSubmit(event, reservation) {
       province: adultOneProvince,
       postalCode: adultOnePostalCode,
       country: adultOneCountry,
-      phone: contactPhone,
-      parentPhone: contactPhone,
+      phone: "",
+      parentPhone: "",
       relationshipResponsible: "",
       relationshipMinor: readRequiredWithMessage(form, `child_${index}_relationshipMinor`, `Falta parentesco en ${label}`, validationErrors),
       relationship: "",
@@ -1453,7 +1445,12 @@ async function handleGuestSubmit(event, reservation) {
     return;
   }
 
-  await reservationService.saveGuests(reservation.id, guests);
+  try {
+    await reservationService.submitGuestsByToken(token, guests);
+  } catch (error) {
+    toast(error.message || "No se pudo guardar el check-in.", "error");
+    return;
+  }
   toast("Check-in completado.", "success");
   shell(`
     <section class="mx-auto max-w-lg rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm">

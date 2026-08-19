@@ -295,6 +295,27 @@ export const reservationService = {
     return normalizeReservation(data);
   },
 
+  async submitGuestsByToken(token, guests) {
+    const client = requireSupabase();
+    const normalizedToken = String(token || "").trim();
+    if (!/^[a-f0-9]{32}$/i.test(normalizedToken)) {
+      throw new Error("El enlace de check-in no es valido.");
+    }
+
+    const { data, error } = await client.functions.invoke("public-checkin", {
+      body: { operation: "submitCheckin", token: normalizedToken, guests },
+    });
+
+    if (error) {
+      if (error.context?.status === 409) throw new Error("El registro ya esta completado.");
+      if (error.context?.status === 400) throw new Error("Los datos del check-in no son validos.");
+      throw new Error("No se pudo guardar el check-in. Intentalo de nuevo.");
+    }
+
+    if (!data?.success) throw new Error("No se pudo confirmar el check-in.");
+    return data;
+  },
+
   async getReservationDetails(id) {
     const client = requireSupabase();
     const [{ data: reservation, error }, { data: guests, error: guestsError }] = await Promise.all([

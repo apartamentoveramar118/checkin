@@ -58,4 +58,17 @@ Antes de aplicarlo en staging, comparar su estado con el resultado de `schema.sq
 
 Las RLS, `schema.sql` y `migration.sql` no se modifican en esta fase.
 
+## Check-in público por Edge Function
+
+La lectura y el envío público usan `supabase/functions/public-checkin`. La operación `submitCheckin` llama a la RPC `public.submit_checkin_by_token`, que debe existir en staging antes de probar el envío.
+
+Orden manual en Supabase staging:
+
+1. Ejecutar el `schema.sql` actualizado, o ejecutar manualmente la parte equivalente de `migration.sql` si el proyecto ya está creado.
+2. Desplegar `public-checkin`.
+3. Verificar que `SUPABASE_SERVICE_ROLE_KEY` solo está configurada como secret de la Edge Function.
+4. Probar primero un token válido y después un token inválido.
+
+La RPC usa el token para resolver la reserva, hereda `contact_phone` en backend y realiza borrado, inserción y actualización dentro de una única transacción. Su ejecución pública está revocada y solo se concede a `service_role`.
+
 Verificación de deployment automático de staging.

@@ -308,3 +308,29 @@ with check (
       and r.status in ('pending', 'in_progress')
   )
 );
+
+create or replace function public.submit_checkin_by_token(p_token text, p_guests jsonb)
+returns boolean language plpgsql security invoker set search_path = public as $$
+declare r public.reservations%rowtype; adults int; children int;
+begin
+  select * into r from public.reservations where token = p_token for update;
+  if not found then raise exception 'reservation_not_found' using errcode = 'P0002'; end if;
+  if r.status in ('completed', 'ses_sent') then raise exception 'reservation_already_completed' using errcode = 'P0003'; end if;
+  if r.status not in ('pending', 'in_progress') then raise exception 'reservation_not_open' using errcode = 'P0004'; end if;
+  select count(*) into adults from jsonb_to_recordset(p_guests) as x(guest_type text) where x.guest_type = 'adult';
+  select count(*) into children from jsonb_to_recordset(p_guests) as x(guest_type text) where x.guest_type = 'child';
+  if adults <> r.adult_count or children <> r.child_count then raise exception 'guest_count_mismatch' using errcode = 'P0005'; end if;
+  if exists (select 1 from jsonb_to_recordset(p_guests) as x(guest_type text, nombre_completo text, fecha_nacimiento date)
+    where x.guest_type not in ('adult', 'child') or coalesce(trim(x.nombre_completo), '') = '' or x.fecha_nacimiento is null) then
+    raise exception 'required_guest_data_missing' using errcode = 'P0006';
+  end if;
+  delete from public.guests where reservation_id = r.id;
+  insert into public.guests (reservation_id,guest_index,guest_type,nombre_completo,nombre,apellidos,fecha_nacimiento,direccion,municipio,provincia,codigo_postal,pais,telefono,telefono_padre_madre,parentesco,parentesco_responsable,parentesco_menor,firma_digital,tipo_documento,id_documento,num_soporte,fecha_expedicion,pais_expedicion)
+  select r.id,x.guest_index,x.guest_type,x.nombre_completo,x.nombre,x.apellidos,x.fecha_nacimiento,x.direccion,x.municipio,x.provincia,x.codigo_postal,x.pais,r.contact_phone,case when x.guest_type = 'child' then r.contact_phone else null end,x.parentesco,x.parentesco_responsable,x.parentesco_menor,x.firma_digital,x.tipo_documento,x.id_documento,x.num_soporte,x.fecha_expedicion,x.pais_expedicion
+  from jsonb_to_recordset(p_guests) as x(guest_index int,guest_type text,nombre_completo text,nombre text,apellidos text,fecha_nacimiento date,direccion text,municipio text,provincia text,codigo_postal text,pais text,parentesco text,parentesco_responsable text,parentesco_menor text,firma_digital text,tipo_documento text,id_documento text,num_soporte text,fecha_expedicion date,pais_expedicion text);
+  update public.reservations set status = 'completed', completed_at = now() where id = r.id;
+  return true;
+end;
+$$;
+revoke all on function public.submit_checkin_by_token(text, jsonb) from public;
+grant execute on function public.submit_checkin_by_token(text, jsonb) to service_role;
