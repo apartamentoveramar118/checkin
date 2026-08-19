@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const allowedCatalogs = new Set(["TIPO_PAGO", "TIPO_PARENTESCO", "TIPO_DOCUMENTO"]);
 const endpointPre = "https://hospedajes.pre-ses.mir.es/hospedajes-web/ws/v1/comunicacion";
-const soapNamespace = "http://www.soap.servicios.hospedajes.mir.es/catalogo";
+const soapNamespace = "http://www.soap.servicios.hospedajes.mir.es/comunicacion";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -20,7 +20,8 @@ function escapeXml(value: string) {
 function parseCatalog(xml: string) {
   const resultCode = xml.match(/<codigo>([^<]*)<\/codigo>/i)?.[1] || xml.match(/<codigoRetorno>([^<]*)<\/codigoRetorno>/i)?.[1];
   const resultDescription = xml.match(/<descripcion>([^<]*)<\/descripcion>/i)?.[1] || "";
-  const items = [...xml.matchAll(/<tupla>\s*<codigo>([^<]*)<\/codigo>\s*<descripcion>([^<]*)<\/descripcion>\s*<\/tupla>/gi)]
+  const responseBlock = xml.match(/<(?:(?:[\w-]+):)?respuesta[\s\S]*?<\/(?:(?:[\w-]+):)?respuesta>/i)?.[0] || "";
+  const items = [...responseBlock.matchAll(/<(?:(?:[\w-]+):)?tupla>\s*<(?:(?:[\w-]+):)?codigo>([^<]*)<\/(?:(?:[\w-]+):)?codigo>\s*<(?:(?:[\w-]+):)?descripcion>([^<]*)<\/(?:(?:[\w-]+):)?descripcion>\s*<\/(?:(?:[\w-]+):)?tupla>/gi)]
     .map((match) => ({ code: match[1], label: match[2] }));
   if (resultCode && resultCode !== "0") return { ok: false, error: { code: resultCode, message: resultDescription || "SES devolvio un error." } };
   return { ok: true, items };
@@ -58,7 +59,7 @@ Deno.serve(async (request) => {
   try {
     const response = await fetch(endpointPre, {
       method: "POST",
-      headers: { "Content-Type": "text/xml; charset=utf-8", SOAPAction: "catalogo", Authorization: `Basic ${basicAuth}` },
+      headers: { "Content-Type": "text/xml; charset=utf-8", SOAPAction: "", Authorization: `Basic ${basicAuth}` },
       body: soapBody,
     });
     const xml = await response.text();
