@@ -1,4 +1,5 @@
 import { isSupabaseConfigured } from "./services/config.js";
+import { supabaseClient } from "./services/supabaseClient.js";
 import { reservationService } from "./services/reservationService.js";
 import { exportReservationPdf } from "./services/pdfService.js";
 
@@ -309,6 +310,58 @@ Apartamento Veramar Fuengirola`;
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
+function renderOwnerLogin(errorMessage = "") {
+  shell(`
+    <main class="flex min-h-[80vh] items-center justify-center">
+      <section class="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div class="mb-6">
+          <h1 class="text-2xl font-bold tracking-tight text-slate-950">Pre-Check-in Digital</h1>
+          <p class="mt-2 text-sm text-slate-600">Acceso del propietario</p>
+        </div>
+        ${errorMessage ? `<p class="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">${errorMessage}</p>` : ""}
+        <form id="owner-login-form" class="space-y-4">
+          <div class="field">
+            <label for="owner-email">Email</label>
+            <input id="owner-email" name="email" type="email" autocomplete="email" required />
+          </div>
+          <div class="field">
+            <label for="owner-password">Contraseña</label>
+            <input id="owner-password" name="password" type="password" autocomplete="current-password" required />
+          </div>
+          <button type="submit" class="min-h-11 w-full rounded-lg bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-slate-800">Entrar</button>
+        </form>
+      </section>
+    </main>
+  `);
+  document.querySelector("#owner-login-form").addEventListener("submit", handleOwnerLogin);
+}
+
+async function handleOwnerLogin(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submitButton = form.querySelector("button[type='submit']");
+  const data = Object.fromEntries(new FormData(form));
+  submitButton.disabled = true;
+  submitButton.textContent = "Entrando...";
+
+  const { error } = await supabaseClient.auth.signInWithPassword({ email: data.email, password: data.password });
+  if (error) {
+    renderOwnerLogin("No se pudo iniciar sesión. Revisa el email y la contraseña.");
+    return;
+  }
+
+  await renderOwnerDashboard();
+}
+
+async function handleOwnerLogout() {
+  const { error } = await supabaseClient.auth.signOut();
+  if (error) {
+    toast("No se pudo cerrar la sesión.", "error");
+    return;
+  }
+  renderOwnerLogin();
+}
+
 function whatsappEnglishUrl(reservation) {
   const phone = normalizePhoneForWhatsApp(reservation.contactPhone);
   const name = reservation.name?.trim();
@@ -435,9 +488,12 @@ async function renderOwnerDashboard() {
       <div>
         <h1 class="text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">Pre-Check-in Digital</h1>
       </div>
-      <div class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-bold text-slate-500">
-        <span class="h-2 w-2 rounded-full ${isSupabaseConfigured() ? "bg-emerald-500" : "bg-red-500"}"></span>
-        ${isSupabaseConfigured() ? "Supabase conectado" : "Supabase no configurado"}
+      <div class="flex items-center gap-2">
+        <div class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-bold text-slate-500">
+          <span class="h-2 w-2 rounded-full ${isSupabaseConfigured() ? "bg-emerald-500" : "bg-red-500"}"></span>
+          ${isSupabaseConfigured() ? "Supabase conectado" : "Supabase no configurado"}
+        </div>
+        <button id="owner-logout" type="button" class="rounded-lg px-2 py-1 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-900">Cerrar sesión</button>
       </div>
     </header>
 
@@ -509,6 +565,7 @@ async function renderOwnerDashboard() {
     isCreateFormOpen = !isCreateFormOpen;
     renderOwnerDashboard();
   });
+  document.querySelector("#owner-logout").addEventListener("click", handleOwnerLogout);
   document.querySelector("#reservation-form")?.addEventListener("submit", handleCreateReservation);
   document.querySelector("#adultCount")?.addEventListener("change", updateCreateCapacityHelp);
   document.querySelector("#childCount")?.addEventListener("change", updateCreateCapacityHelp);
@@ -1417,6 +1474,17 @@ async function boot() {
   if (route.mode === "guest") {
     await renderGuestCheckin(route.token);
   } else {
+    if (!supabaseClient) {
+      throw new Error("Supabase no esta configurado. Revisa VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.");
+    }
+
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (error) throw error;
+    if (!data.session) {
+      renderOwnerLogin();
+      return;
+    }
+
     await renderOwnerDashboard();
   }
 }

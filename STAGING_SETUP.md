@@ -47,4 +47,15 @@ El archivo `migration.sql` contiene cambios incrementales para instalaciones ant
 
 Antes de aplicarlo en staging, comparar su estado con el resultado de `schema.sql`. Mantener las migraciones versionadas y ejecutarlas manualmente en el proyecto Supabase de staging.
 
+## Auth y Edge Function en staging
+
+1. En Supabase staging, crear manualmente el usuario propietario en Authentication > Users usando email/password.
+2. No habilitar registro público desde la aplicación; el login del panel solo usa `signInWithPassword`.
+3. Configurar los secrets `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` únicamente en la Edge Function. Nunca usar `SUPABASE_SERVICE_ROLE_KEY` en `VITE_`, frontend o Git.
+4. Desplegar manualmente `supabase/functions/public-checkin` desde el proyecto Supabase staging.
+5. `getReservation` está preparada, pero el formulario actual todavía no la utiliza.
+6. `submitCheckin` devuelve `501` y queda documentada para una fase posterior; no sustituye a `saveGuests()`.
+
+Las RLS, `schema.sql` y `migration.sql` no se modifican en esta fase.
+
 Verificación de deployment automático de staging.
