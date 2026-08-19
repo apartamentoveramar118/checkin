@@ -91,3 +91,43 @@ end;
 $$;
 revoke all on function public.submit_checkin_by_token(text, jsonb) from public;
 grant execute on function public.submit_checkin_by_token(text, jsonb) to service_role;
+
+-- Cierre de RLS para staging. Ejecutar manualmente en Supabase staging.
+drop policy if exists "owner prototype can read reservations" on public.reservations;
+drop policy if exists "owner prototype can create reservations" on public.reservations;
+drop policy if exists "owner prototype can update reservations" on public.reservations;
+drop policy if exists "owner prototype can delete reservations" on public.reservations;
+drop policy if exists "owner prototype can read guests" on public.guests;
+drop policy if exists "owner prototype can delete guests" on public.guests;
+drop policy if exists "public can insert guests for open reservation" on public.guests;
+drop policy if exists "authenticated can read reservations" on public.reservations;
+drop policy if exists "authenticated can create reservations" on public.reservations;
+drop policy if exists "authenticated can update reservations" on public.reservations;
+drop policy if exists "authenticated can delete reservations" on public.reservations;
+drop policy if exists "authenticated can read guests" on public.guests;
+drop policy if exists "authenticated can delete guests" on public.guests;
+
+create policy "authenticated can read reservations"
+on public.reservations for select to authenticated
+using (auth.role() = 'authenticated');
+
+create policy "authenticated can create reservations"
+on public.reservations for insert to authenticated
+with check (auth.role() = 'authenticated' and adult_count between 1 and 4 and child_count between 0 and 3 and adult_count + child_count between 1 and 4 and length(trim(contact_phone)) > 0);
+
+create policy "authenticated can update reservations"
+on public.reservations for update to authenticated
+using (auth.role() = 'authenticated')
+with check (auth.role() = 'authenticated' and adult_count between 1 and 4 and child_count between 0 and 3 and adult_count + child_count between 1 and 4 and length(trim(contact_phone)) > 0);
+
+create policy "authenticated can delete reservations"
+on public.reservations for delete to authenticated
+using (auth.role() = 'authenticated');
+
+create policy "authenticated can read guests"
+on public.guests for select to authenticated
+using (auth.role() = 'authenticated');
+
+create policy "authenticated can delete guests"
+on public.guests for delete to authenticated
+using (auth.role() = 'authenticated');
