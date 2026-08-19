@@ -17,6 +17,13 @@ function escapeXml(value: string) {
   return value.replace(/[<>&'\"]/g, (character) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", "\"": "&quot;" }[character]));
 }
 
+function decodePemSecret(name: string) {
+  const encoded = Deno.env.get(name);
+  if (!encoded) throw new Error(`Missing certificate secret: ${name}`);
+  const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
 function parseCatalog(xml: string) {
   const resultCode = xml.match(/<codigo>([^<]*)<\/codigo>/i)?.[1] || xml.match(/<codigoRetorno>([^<]*)<\/codigoRetorno>/i)?.[1];
   const resultDescription = xml.match(/<descripcion>([^<]*)<\/descripcion>/i)?.[1] || "";
@@ -55,12 +62,23 @@ Deno.serve(async (request) => {
     <com:catalogoRequest><peticion><catalogo>${escapeXml(body.catalog)}</catalogo></peticion></com:catalogoRequest>
   </soapenv:Body>
 </soapenv:Envelope>`;
+  let httpClient;
+  try {
+    const intermediatePem = decodePemSecret("SES_HOSPEDAJES_CA_INTERMEDIATE_B64");
+    const rootPem = decodePemSecret("SES_HOSPEDAJES_CA_ROOT_B64");
+    httpClient = Deno.createHttpClient({ caCerts: [intermediatePem, rootPem] });
+  } catch (error) {
+    console.error("SES PRE CA configuration error", error instanceof Error ? error.message : "unknown");
+    return json({ ok: false, error: { code: "SES_CA_NOT_CONFIGURED", message: "La cadena CA de SES PRE no está configurada." } }, 503);
+  }
+
   const basicAuth = btoa(`${username}:${password}`);
   try {
     const response = await fetch(endpointPre, {
       method: "POST",
       headers: { "Content-Type": "text/xml; charset=utf-8", SOAPAction: "", Authorization: `Basic ${basicAuth}` },
       body: soapBody,
+      client: httpClient,
     });
     const xml = await response.text();
     if (!response.ok) {

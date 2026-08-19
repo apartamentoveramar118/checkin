@@ -4,3 +4,7 @@ dist
 .env.local
 .env.production
 .DS_Store
+fnmt-intermediate.cer
+fnmt-root.cer
+fnmt-intermediate.pem
+fnmt-root.pem
