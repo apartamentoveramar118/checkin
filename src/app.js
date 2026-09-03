@@ -309,6 +309,78 @@ Apartamento Veramar Fuengirola`;
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
+function whatsappEnglishUrl(reservation) {
+  const phone = normalizePhoneForWhatsApp(reservation.contactPhone);
+  const name = reservation.name?.trim();
+  const greeting = name ? `Hello ${name}! \u{1F44B}` : "Hello! \u{1F44B}";
+  const message = `${greeting}
+
+I'm Nieves, from Apartamento Veramar Fuengirola.
+
+Thank you very much for your reservation! \u{1F60A} We hope you have a wonderful stay.
+
+We would like to give you some important information about your arrival and also ask you for a small favour.
+
+\u{1F4DD} ONLINE PRE-CHECK-IN
+
+To make your arrival quicker and easier, we would appreciate it if you could complete the online pre-check-in before your arrival date.
+
+It will only take a few minutes, and this way we can have all the necessary documentation ready when you arrive.
+
+\u{1F517} ${publicUrl(reservation.token)}
+
+\u{1F552} CHECK-IN & CHECK-OUT TIMES
+
+• Check-in: from 3:00 pm to 9:00 pm.
+• Check-out: until 12:00 pm.
+
+\u{1F511} KEY HANDOVER
+
+The keys will be handed over personally at the apartment.
+
+The day before your arrival, or on the morning of your arrival, we will contact you to find out your approximate arrival time so that we can organise everything properly.
+
+If you already know your approximate arrival time, you can let us know by replying to this message.
+
+\u{1F697} PARKING
+
+The apartment has access to communal parking.
+
+Sometimes it may be full, but cars come and go regularly, so spaces usually become available later or even the following day.
+
+There is also free street parking available in the surrounding area.
+
+\u{1F698} PARKING REMOTE CONTROL
+
+A €40 cash deposit is required for the parking remote control.
+
+The full deposit will be returned on the day of departure when the remote control is returned.
+
+\u{1F4CC} REQUIRED IDENTIFICATION
+
+In accordance with Spanish accommodation registration regulations, all guests must present a valid identity document on the day of arrival (DNI or equivalent ID for Schengen countries, Spanish NIE, or passport).
+
+If valid identification is not provided, we will not be able to allow access to the apartment, and this will not entitle the reservation to free cancellation.
+
+\u{1F6AD} SMOKE-FREE ACCOMMODATION
+
+We are committed to providing a 100% smoke-free accommodation.
+
+Smoking and vaping are not permitted inside the apartment.
+
+Failure to comply with this rule will result in an additional €100 cleaning charge.
+
+If you have any questions before your arrival, we will be happy to help.
+
+We look forward to welcoming you to Fuengirola very soon! ☀️
+
+Best regards,
+
+Nieves
+Apartamento Veramar Fuengirola`;
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
+
 function sortedReservations(items) {
   return [...items].sort((a, b) => {
     const statusScoreA = isPendingStatus(a.status) ? 0 : 1;
@@ -550,7 +622,8 @@ function renderReservationCard(reservation) {
         <div class="grid grid-cols-2 gap-2 sm:w-72">
           <button data-action="view" data-id="${reservation.id}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold hover:bg-slate-50">Ver reserva</button>
           <button data-action="edit" data-id="${reservation.id}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold hover:bg-slate-50">Editar</button>
-          <button data-action="whatsapp" data-id="${reservation.id}" class="rounded-lg border border-emerald-200 px-3 py-1.5 text-sm font-bold text-emerald-700 hover:bg-emerald-50">Enviar WhatsApp</button>
+          <button data-action="whatsapp" data-language="es" data-id="${reservation.id}" class="rounded-lg border border-emerald-200 px-3 py-1.5 text-sm font-bold text-emerald-700 hover:bg-emerald-50">WhatsApp ES</button>
+          <button data-action="whatsapp" data-language="en" data-id="${reservation.id}" class="rounded-lg border border-sky-200 px-3 py-1.5 text-sm font-bold text-sky-700 hover:bg-sky-50">WhatsApp EN</button>
           <button data-action="pdf" data-id="${reservation.id}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold hover:bg-slate-50">Exportar PDF</button>
           <button disabled class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-bold text-slate-400">Enviar SES - Proximamente</button>
           <button data-action="delete" data-id="${reservation.id}" class="col-span-2 rounded-lg border border-red-200 px-3 py-1.5 text-sm font-bold text-red-700 hover:bg-red-50">Borrar</button>
@@ -669,7 +742,10 @@ async function handleReservationAction(event) {
 
   if (action === "whatsapp") {
     toast("Abriendo WhatsApp...");
-    window.open(whatsappUrl(reservation), "_blank", "noopener,noreferrer");
+    const url = event.currentTarget.dataset.language === "en"
+      ? whatsappEnglishUrl(reservation)
+      : whatsappUrl(reservation);
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   if (action === "pdf") {
